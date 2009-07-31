@@ -1,11 +1,31 @@
 #!/bin/bash
 
-if [ -z "${1}" ] ; then
+function usage() {
 	cat <<EOF
-Usage: $(basename "${0}") <Input path>
+Usage: $(basename "${0}") [Options] <Input path>
+Options:
+  -h       : show this help message
 EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+function die() {
+	echo "$@" >&2
 	exit 1
-fi
+}
+
+opt="$(getopt -o h -- "$@")"
+(($? != 0)) && usage
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ;;
+	--) shift ; break ;;
+	*) die "Internal error!" ;;
+	esac
+done
+
+[ -z "${1}" ] && usage "no input path"
 
 src="$(readlink -f "${1}")"
 d="$(dirname "${src}")"
@@ -21,6 +41,8 @@ fi
 
 pwd
 tar cjvpf "${tar}" "${src}"
+echo
+echo "output: ${PWD}/${tar}"
 
 popd &>/dev/null
 
