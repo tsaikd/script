@@ -2,9 +2,12 @@
 
 function usage() {
 	cat <<EOF
-Usage: $(basename "${0}") [Options] <Input path>
+Usage: $(basename "${0}") [Options] [Input path]
 Options:
   -h       : show this help message
+  -D <DIR> : set output dir
+
+Input path: default "."
 EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
@@ -14,23 +17,33 @@ function die() {
 	exit 1
 }
 
-opt="$(getopt -o h -- "$@")"
+opt="$(getopt -o hD: -- "$@")"
 (($? != 0)) && usage
 eval set -- "${opt}"
 while true ; do
 	case "${1}" in
 	-h) usage ;;
+	-D) tdir="${2%/}" ; shift 2 ;;
 	--) shift ; break ;;
 	*) die "Internal error!" ;;
 	esac
 done
 
-[ -z "${1}" ] && usage "no input path"
+if [ "${1}" ] ; then
+	src="${1}"
+else
+	src="."
+fi
 
-src="$(readlink -f "${1}")"
+src="$(readlink -f "${src}")"
 d="$(dirname "${src}")"
 src="$(basename "${src}")"
 tar="${src}.tbz"
+if [ "${tdir}" ] ; then
+	tar="${tdir}/${tar}"
+else
+	tar="${d}/${tar}"
+fi
 
 pushd "${d}" &>/dev/null
 
@@ -42,7 +55,7 @@ fi
 pwd
 tar cjvpf "${tar}" "${src}"
 echo
-echo "output: ${PWD}/${tar}"
+echo "output: ${tar}"
 
 popd &>/dev/null
 
