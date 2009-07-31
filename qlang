@@ -1,0 +1,55 @@
+#!/bin/bash
+
+function usage() {
+	cat <<EOF
+Usage: $(basename "${0}") [Options] [PRO FILE]
+Options:
+  -h       : show this help message
+EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+function die() {
+	echo "$@" >&2
+	exit 1
+}
+
+function checknecprog() {
+	local i
+	for i in "$@" ; do
+		type -p "${i}" &>/dev/null
+		if (($? != 0)) ; then
+			die "Necessary program '${i}' no found"
+		fi
+	done
+}
+
+opt="$(getopt -o h -- "$@")"
+(($? != 0)) && usage
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ;;
+	--) shift ; break ;;
+	*) die "Internal error!" ;;
+	esac
+done
+
+checknecprog perl lupdate linguist lrelease
+
+pro="${1}"
+if [ -z "${pro}" ] ; then
+	pro="$(ls -1 *.pro 2>/dev/null)"
+	[ -z "${pro}" ] && die "No pro file found"
+	[ "$(wc -l <<<"${pro}")" -ne 1 ] && die "Many pro file found"
+fi
+
+msg="$(lupdate "${pro}")"
+echo "${msg}"
+
+tsfile="$(perl -ane "s/^Updating '(.*?)'/print \$1/e" <<<"${msg}")"
+[ ! -f "${tsfile}" ] && die "ts file no found"
+
+LC_ALL="zh_TW.utf8" linguist "${tsfile}"
+lrelease "${tsfile}"
+
