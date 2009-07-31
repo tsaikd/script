@@ -1,0 +1,90 @@
+#!/bin/bash
+
+function usage() {
+	cat <<EOF
+Usage: $(basename "${0}") [Options] [<Tag>[:/Path]]
+Options:
+  -h       : show this help message
+
+Tag:
+  tag of git, can be "HEAD" for lastest tag, use 'git tag' to list all TAGs
+  default "HEAD"
+EOF
+}
+
+function get_git_tag() {
+	local tag="${1}"
+	local lasttag
+	local headhash
+	local taghash
+
+	if [ "${tag}" == "HEAD" ] ; then
+		lasttag="$(git tag | tail -n 1)"
+		headhash="$(git log -1 --pretty="format:%H" "HEAD")"
+		if [ "${lasttag}" ] ; then
+			taghash="$(git log -1 --pretty="format:%H" "${lasttag}")"
+			if [ "${headhash}" == "${taghash}" ] ; then
+				tag="${lasttag}"
+			else
+				tag="${taghash}"
+			fi
+		else
+			tag="${headhash}"
+		fi
+	else # ${tag} != HEAD
+		if [ -z "$(git tag | grep "^${tag}$")" ] ; then
+			echo "GIT TAG '${tag}' no found!" >&2
+			exit 1
+		fi
+	fi
+	echo "${tag}"
+}
+
+#(($# == 0)) && usage && exit
+opt="$(getopt -o h -- "$@")"
+(($? != 0)) && usage && exit 1
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; exit; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
+# check is in git repository
+msg="$(git branch 2>&1)"
+if [ $? -ne 0 ] ; then
+	echo "${msg}"
+	exit 1
+fi
+
+# get appname
+dir="${PWD}"
+appname="$(basename "${dir}")"
+while [ "${appname}" == "src" ] ; do
+	dir="$(dirname "${dir}")"
+	appname="$(basename "${dir}")"
+done
+if [ "${appname}" == "/" ] \
+	|| [ "${appname}" == "." ] ; then
+	echo "Detected invalid appname ('${appname}')" >&2
+fi
+
+gtag="${1:-HEAD}"
+ARCHIVE_TAG="$(get_git_tag "${gtag}")" || exit $?
+if [ "$(grep -e "^v\?\([0-9]\+\.\?\)\+.*$" <<< "${ARCHIVE_TAG}")" ] ; then
+	tarname="${appname}-${ARCHIVE_TAG#v}"
+else
+	tarname="${appname}-${ARCHIVE_TAG}"
+fi
+outname="${tarname}.zip"
+
+git archive --format=zip -9 --prefix="${tarname}/" "${ARCHIVE_TAG}" > "${outname}"
+if [ $? -eq 0 ] ; then
+	size="$(stat -c %s "${outname}")"
+	size="$(bc <<<"${size} / 1024")"
+	echo "${outname} (${size}KB) archive successfully"
+fi
+

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+if [ -z "${1}" ] ; then
+	cat <<EOF
+Usage: $(basename "${0}") <Input path>
+EOF
+	exit 1
+fi
+
+src="$(readlink -f "${1}")"
+d="$(dirname "${src}")"
+src="$(basename "${src}")"
+tar="${src}.tbz"
+
+pushd "${d}" &>/dev/null
+
+if [ ! -e "${src}" ] ; then
+	echo "'${src}' not found" >&2
+	exit 1
+fi
+
+pwd
+tar cjvpf "${tar}" "${src}"
+
+popd &>/dev/null
+

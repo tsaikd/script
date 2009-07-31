@@ -1,0 +1,111 @@
+#!/bin/bash
+
+function showhelp() {
+	cat <<EOF
+Usage: ${0} [OPTIONS]
+Options:
+	-h        : show this help message
+	-p <name> : set project name by hand instead of detection
+	-a        : extract all
+	-C <dir>  : set output dir instead of "./html/"
+	-D        : debug mode
+EOF
+}
+
+function checknecprog() {
+	type -p "${1}" &>/dev/null
+	if (($? != 0)) ; then
+		echo "Necessary program '${1}' no found"
+		exit 1
+	fi
+}
+
+opt="$(getopt -o hp:aC:D -- "$@")"
+(($? != 0)) && showhelp && exit 1
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) showhelp ; exit; shift ;;
+	-p) projname="$(basename "${2}")" ; shift 2 ;;
+	-a) F_EXTRACTALL=1 ; shift ;;
+	-C) OUT_DIR="${2}" ; shift 2 ;;
+	-D) F_DEBUG=1 ; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
+checknecprog doxygen
+
+if [ -z "${projname}" ] ; then
+	buf="${PWD}"
+	projname="$(basename "${buf}")"
+	while [ "$(grep -E "^(src|tmp)$" <<<"${projname}")" ] ; do
+		buf="$(dirname "${buf}")"
+		projname="$(basename "${buf}")"
+	done
+fi
+
+if [ -z "${projnum}" ] ; then
+	if [ "$(type -p git)" ] ; then
+		head="$(git log -n 1 --pretty=format:'%H' 2>/dev/null)"
+		if [ "${head}" ] ; then
+			tag="$(git tag | tail -n 1)"
+			if [ "${tag}" ] ; then
+				buf="$(git log "${tag}..${head}")"
+				[ "${buf}" ] && tag="${head}"
+			else
+				tag="${head}"
+			fi
+			projnum="\"git ${tag}\""
+		fi
+	fi
+fi
+
+Doxyfile="$(doxygen -g - | \
+	sed -r "s/^(PROJECT_NAME\s*=).*$/\1 ${projname}/" | \
+	sed -r "s/^(GENERATE_LATEX\s*=).*$/\1 NO/" | \
+	sed -r "s/^(TAB_SIZE\s*=).*$/\1 4/" | \
+	sed -r "s/^(DETAILS_AT_TOP\s*=).*$/\1 YES/" | \
+	sed -r "s/^(RECURSIVE\s*=).*$/\1 YES/" | \
+	sed -r "s/^(EXTRACT_LOCAL_METHODS\s*=).*$/\1 YES/" | \
+	sed -r "s/^(EXTRACT_ANON_NSPACES\s*=).*$/\1 YES/" | \
+	sed -r "s/^(EXTRACT_PRIVATE\s*=).*$/\1 YES/" | \
+	sed -r "s/^(EXTRACT_STATIC\s*=).*$/\1 YES/" | \
+	sed -r "s/^(HTML_DYNAMIC_SECTIONS\s*=).*$/\1 YES/" | \
+	sed -r "s/^(SHOW_USED_FILES\s*=).*$/\1 NO/" | \
+	cat
+)"
+
+if [ "${projnum}" ] ; then
+	Doxyfile="$(echo "${Doxyfile}" | \
+	sed -r "s/^(PROJECT_NUMBER\s*=).*$/\1 ${projnum}/" | \
+	cat)"
+fi
+
+if ((F_EXTRACTALL == 1)) ; then
+	Doxyfile="$(echo "${Doxyfile}" | \
+	sed -r "s/^(EXTRACT_ALL\s*=).*$/\1 YES/" | \
+	sed -r "s/^(SHOW_USED_FILES\s*=).*$/\1 YES/" | \
+	cat)"
+fi
+if ((0)) ; then
+	sed -r "s/^(QT_AUTOBRIEF\s*=).*$/\1 YES/" | \
+	sed -r "s/^(SHOW_DIRECTORIES\s*=).*$/\1 YES/" | \
+	sed -r "s/^(INLINE_INHERITED_MEMB\s*=).*$/\1 YES/" | \
+	cat
+fi
+
+if [ "${OUT_DIR}" ] ; then
+	Doxyfile="$(echo "${Doxyfile}" | \
+	sed -r "s|^(HTML_OUTPUT\s*=).*$|\1 ${OUT_DIR}|" | \
+	cat)"
+fi
+
+if ((F_DEBUG == 1)) ; then
+	less <<<"${Doxyfile}"
+else
+	doxygen - <<<"${Doxyfile}"
+fi
+
