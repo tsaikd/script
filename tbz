@@ -1,13 +1,16 @@
 #!/bin/bash
 
+PN="$(basename "${0}")"
+
 function usage() {
 	cat <<EOF
-Usage: $(basename "${0}") [Options] [Input path]
+Usage: ${PN} [Options] [Input path]
 Options:
   -h       : show this help message
   -D <DIR> : set output dir
 
-Input path: default "."
+Default input path: "."
+Default output dir: dirname of input path
 EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
@@ -36,9 +39,17 @@ else
 fi
 
 src="$(readlink -f "${src}")"
+[ "${src}" == "/" ] && die "Input path cannot be '/'"
+
 d="$(dirname "${src}")"
 src="$(basename "${src}")"
-tar="${src}.tbz"
+
+if [ "${PN}" == "t7z" ] ; then
+	tar="${src}.7z"
+else
+	tar="${src}.tbz"
+fi
+
 if [ "${tdir}" ] ; then
 	tar="${tdir}/${tar}"
 else
@@ -53,7 +64,11 @@ if [ ! -e "${src}" ] ; then
 fi
 
 pwd
-tar cjvpf "${tar}" "${src}"
+if [ "${PN}" == "t7z" ] ; then
+	7z a -m0=lzma -mx=9 -mfb=273 -md=32m "${tar}" "${src}"
+else
+	tar cjvpf "${tar}" "${src}"
+fi
 echo
 echo "output: ${tar}"
 
