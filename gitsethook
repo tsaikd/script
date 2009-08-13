@@ -1,0 +1,48 @@
+#!/bin/bash
+
+function usage() {
+	cat <<EOF
+Usage: ${0} <Project>
+EOF
+	if [ $# -gt 0 ] ; then
+		echo "$@" >&2
+		exit 1
+	else
+		exit
+	fi
+}
+
+function die() {
+	echo "$@" >&2
+	exit 1
+}
+
+# $1: command
+# $2: filepath
+function addCmdToFile() {
+	local cmd="${1}"
+	local f="${2}"
+	if [ ! -f "${f}" ] || [ -z "$(grep "^${cmd}" "${f}")" ]; then
+		echo "${cmd}" >> "${f}"
+		chmod +x "${f}"
+	fi
+}
+
+# $1: project path
+function sethook() {
+	local projpath="$(readlink -f "${1}")"
+	[ ! -d "${projpath}/.git" ] && die "Target project is not git repository"
+	local projname="$(basename "${projpath}")"
+	local gitdir="${projpath}/.git"
+	local hookdir="${gitdir}/hooks"
+
+	pushd "${hookdir}"
+	addCmdToFile "exec git update-server-info" "post-commit"
+	addCmdToFile "exec git update-server-info" "post-receive"
+	popd
+}
+
+for i in "$@" ; do
+	sethook "${i}"
+done
+
