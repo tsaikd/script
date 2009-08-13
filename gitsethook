@@ -24,8 +24,9 @@ function addCmdToFile() {
 	local f="${2}"
 	if [ ! -f "${f}" ] || [ -z "$(grep "^${cmd}" "${f}")" ]; then
 		echo "${cmd}" >> "${f}"
-		chmod +x "${f}"
+		echo "add '${cmd}' to '${PWD}/${f}'"
 	fi
+	chmod +x "${f}"
 }
 
 # $1: project path
@@ -36,10 +37,10 @@ function sethook() {
 	local gitdir="${projpath}/.git"
 	local hookdir="${gitdir}/hooks"
 
-	pushd "${hookdir}"
+	pushd "${hookdir}" &>/dev/null
 	addCmdToFile "exec git update-server-info" "post-commit"
 	addCmdToFile "exec git update-server-info" "post-receive"
-	popd
+	popd &>/dev/null
 }
 
 for i in "$@" ; do
