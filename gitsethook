@@ -40,6 +40,7 @@ function sethook() {
 	pushd "${hookdir}" &>/dev/null
 	addCmdToFile "exec git update-server-info" "post-commit"
 	addCmdToFile "exec git update-server-info" "post-receive"
+	addCmdToFile "exec git update-server-info" "post-update"
 	popd &>/dev/null
 }
 
