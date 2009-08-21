@@ -1,0 +1,62 @@
+#!/bin/bash
+
+function usage() {
+	cat <<EOF
+Usage: $(basename "${0}") [Options] <Commit>
+Options:
+  -h       : show this help message
+
+Commit:
+  Commit hash value
+EOF
+	if [ $# -gt 0 ] ; then
+		echo
+		echo "$@" >&2
+		exit 1
+	else
+		exit 0
+	fi
+}
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o h -- "$@")"
+(($? != 0)) && usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
+push_commit="${1}"
+shift
+
+# check is in git repository
+msg="$(git branch 2>&1)"
+if [ $? -ne 0 ] ; then
+	echo "${msg}"
+	exit 1
+fi
+
+# stash if need
+stash=0
+msg="$(git stash 2>&1)"
+if [ "${msg}" != "No local changes to save" ] ; then
+	stash=1
+else
+	echo "${msg}"
+fi
+
+# get current commit
+cur_commit="$(git log -1 --pretty="format:%H")"
+
+git reset --hard "${push_commit}"
+git push
+git pull
+git reset --hard "${cur_commit}"
+
+[ "${stash}" == 1 ] && git stash pop
+
