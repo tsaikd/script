@@ -1,0 +1,18 @@
+#!/bin/bash
+
+_gitpc() 
+{
+	local cur=${COMP_WORDS[COMP_CWORD]}
+	if [ "${cur}" == "-" ]; then
+		COMPREPLY=( $( compgen -W "-h" -- $cur ) )
+		return
+	fi
+
+	if [ "$(git remote 2>/dev/null | grep '\<origin\>')" ] ; then
+		COMPREPLY=( $( compgen -W "$(git log --pretty=format:%H origin/HEAD..HEAD 2>/dev/null)" -- $cur ) )
+		return
+	fi 
+}
+
+complete -F _gitpc -o default gitpc
+
