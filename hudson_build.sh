@@ -12,6 +12,7 @@ Options:
 
 Build Type:
   qt4       : Qt Version 4
+  qtgenmake : Qt generate project file automatically
 EOF
 	if [ $# -gt 0 ] ; then
 		echo
@@ -56,7 +57,7 @@ if [ -z "${BUILD_NUMBER}" ] ; then
 	BUILD_NUMBER=0
 	while [ -f "${JOB_NAME}-${BUILD_NUMBER}.7z" ] \
 		|| [ -d "tmp/${JOB_NAME}-${BUILD_NUMBER}" ] ; do
-		$((BUILD_NUMBER++))
+		true $((BUILD_NUMBER++))
 	done
 fi
 proj_tar="${JOB_NAME}-${BUILD_NUMBER}"
@@ -66,18 +67,29 @@ case "${build_type}" in
 qt4)
 	qmake && make debug && make release || exit 1
 	;;
+qtgenmake)
+	qmake -project || exit 1
+	proj_file="$(basename "${PWD}").pro"
+	[ ! -f "${proj_file}" ] && \
+		proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
+	[ ! -f "${proj_file}" ] && die "no project file found"
+	echo "CONFIG *= debug_and_release" >>"${proj_file}"
+	qmake -Wall && make debug && make release || exit 1
+	;;
 *)
 	usage "Build Type not support ('${build_type}')"
 	;;
 esac
 popd &>/dev/null
 
-mkdir -p "tmp/${proj_tar}/"
-for i in "$@" ; do
-	cp -a "${i}" "tmp/${proj_tar}/" || exit 1
-done
+if [ $# -gt 0 ] ; then
+	mkdir -p "tmp/${proj_tar}/"
+	for i in "$@" ; do
+		cp -a "${i}" "tmp/${proj_tar}/" || exit 1
+	done
 
-pushd "tmp" &>/dev/null || exit 1
-7z a -m0=lzma -mx=9 -mfb=273 -md=32m "../${proj_tar}.7z" "${proj_tar}"
-popd &>/dev/null
+	pushd "tmp" &>/dev/null || exit 1
+	7z a -m0=lzma -mx=9 -mfb=273 -md=32m "../${proj_tar}.7z" "${proj_tar}"
+	popd &>/dev/null
+fi
 
