@@ -1,5 +1,5 @@
 #!/bin/bash
-
+export LANG=C
 PN="$(basename "${0}")"
 
 function usage() {
