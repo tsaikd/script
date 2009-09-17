@@ -1,15 +1,64 @@
-#!/bin/bash -v
+#!/bin/bash
+
+PN="$(basename "${0}")"
 
 function usage() {
 	cat <<EOF
-$0 <Build Type> <Project Dir> [Archive file1] [Archive file2]...
+Usage: ${PN} [Options] <Build Type> [Archive file1] [Archive file2]...
+
+Options:
+  -h        : Show this help message
+  -d <DIR>  : Set working directory
+
+Build Type:
+  qt4       : Qt Version 4
 EOF
+	if [ $# -gt 0 ] ; then
+		echo
+		die "$@"
+	else
+		exit 0
+	fi
 }
 
-build_type="${1}"
-shift
-proj_dir="${1}"
-shift
+function die() {
+	echo "$@" >&2
+	exit 1
+}
+
+function checknecprog() {
+	local i
+	for i in "$@" ; do
+		[ "$(type -t "${i}")" ] || die "Necessary program '${i}' no found"
+	done
+}
+
+checknecprog qmake make 7z
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o hd: -- "$@")"
+(($? != 0)) && usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	-d) proj_dir="$(readlink -f "${2}")" ; shift 2 ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
+build_type="${1}" ; shift
+true ${proj_dir:=${PWD}}
+true ${JOB_NAME:=$(basename "${proj_dir}")}
+if [ -z "${BUILD_NUMBER}" ] ; then
+	BUILD_NUMBER=0
+	while [ -f "${JOB_NAME}-${BUILD_NUMBER}.7z" ] \
+		|| [ -d "tmp/${JOB_NAME}-${BUILD_NUMBER}" ] ; do
+		$((BUILD_NUMBER++))
+	done
+fi
 proj_tar="${JOB_NAME}-${BUILD_NUMBER}"
 
 pushd "${proj_dir}" &>/dev/null || exit 1
@@ -18,8 +67,7 @@ qt4)
 	qmake && make debug && make release || exit 1
 	;;
 *)
-	echo "Build Type not support ('${build_type}')"
-	exit 1
+	usage "Build Type not support ('${build_type}')"
 	;;
 esac
 popd &>/dev/null
@@ -30,6 +78,6 @@ for i in "$@" ; do
 done
 
 pushd "tmp" &>/dev/null || exit 1
-7z a -m0=lzma -mx=9 -mfb=273 -md=32m "..\${proj_tar}.7z" "${proj_tar}"
+7z a -m0=lzma -mx=9 -mfb=273 -md=32m "../${proj_tar}.7z" "${proj_tar}"
 popd &>/dev/null
 
