@@ -32,9 +32,10 @@ function addCmdToFile() {
 # $1: project path
 function sethook() {
 	local projpath="$(readlink -f "${1}")"
-	[ ! -d "${projpath}/.git" ] && die "Target project is not git repository"
-	local projname="$(basename "${projpath}")"
-	local gitdir="${projpath}/.git"
+	pushd "${projpath}" &>/dev/null
+	local gitdir="$(git rev-parse --git-dir 2>/dev/null)" || die "Target project is not git repository"
+	gitdir="$(readlink -f "${gitdir}")"
+	popd &>/dev/null
 	local hookdir="${gitdir}/hooks"
 
 	pushd "${hookdir}" &>/dev/null
