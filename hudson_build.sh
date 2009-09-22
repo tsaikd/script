@@ -74,7 +74,21 @@ qtgenmake)
 		proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
 	[ ! -f "${proj_file}" ] && die "no project file found"
 	echo "CONFIG *= debug_and_release" >>"${proj_file}"
-	qmake -Wall && make debug && make release || exit 1
+	qmake -Wall || exit 1
+	[ -f "Makefile.Debug" ] && \
+		sed -i -r '
+			s|-DQT[^ ]*||g;
+			s|-I[^ ]*/qt4[^ ]*||g;
+			s|-lQt[^ ]*||g;
+			s|^(DEFINES\s+=\s)|\1-DDEBUG|;
+			' Makefile.Debug
+	[ -f "Makefile.Release" ] && \
+		sed -i -r '
+			s|-DQT[^ ]*||g;
+			s|-I[^ ]*/qt4[^ ]*||g;
+			s|-lQt[^ ]*||g;
+			' Makefile.Release
+	make debug && make release || exit 1
 	;;
 *)
 	usage "Build Type not support ('${build_type}')"
