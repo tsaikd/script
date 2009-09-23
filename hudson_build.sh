@@ -9,6 +9,12 @@ Usage: ${PN} [Options] <Build Type> [Archive file1] [Archive file2]...
 Options:
   -h        : Show this help message
   -d <DIR>  : Set working directory
+  --compiler-prefix <PREFIX>
+            : Set compiler prefix, useful for cross compile
+              only effect in "qtgenmake" build type
+  --static  : Build with static link
+              only effect in "qtgenmake" build type
+  --debug   : Build only debug mode (ignore release mode)
 
 Build Type:
   qt4       : Qt Version 4
@@ -34,10 +40,10 @@ function checknecprog() {
 	done
 }
 
-checknecprog qmake make 7z
+checknecprog sed qmake make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd: -- "$@")"
+opt="$(getopt -o hd: -l compiler-prefix: -l static -l debug -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -45,6 +51,9 @@ while true ; do
 	case "${1}" in
 	-h) usage ; shift ;;
 	-d) proj_dir="$(readlink -f "${2}")" ; shift 2 ;;
+	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
+	--static) linkopt="${linkopt} -static" ; shift ;;
+	--debug) debug=1 ; shift ;;
 	--) shift ; break ;;
 	*) echo "Internal error!" ; exit 1 ;;
 	esac
@@ -65,7 +74,11 @@ proj_tar="${JOB_NAME}-${BUILD_NUMBER}"
 pushd "${proj_dir}" &>/dev/null || exit 1
 case "${build_type}" in
 qt4)
-	qmake && make debug && make release || exit 1
+	qmake || exit 1
+	make debug || exit 1
+	if [ "${debug}" != "1" ] ; then
+		make release || exit 1
+	fi
 	;;
 qtgenmake)
 	qmake -project || exit 1
@@ -73,22 +86,60 @@ qtgenmake)
 	[ ! -f "${proj_file}" ] && \
 		proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
 	[ ! -f "${proj_file}" ] && die "no project file found"
-	echo "CONFIG *= debug_and_release" >>"${proj_file}"
+	proj_name="${proj_file%.pro}"
+	cat >> "${proj_file}" <<EOF
+QT -= core gui
+
+OS		= unknown
+win32	{ OS = win32 }
+unix	{ OS = unix  }
+mac		{ OS = mac   }
+
+QMAKE_LFLAGS *= ${linkopt}
+
+CONFIG *= debug_and_release warn_on
+CONFIG(debug, debug|release) {
+	TARGET		= ${proj_name}d
+	BUILD		= debug
+	CONFIG		*= debug
+	CONFIG		-= release
+	DEFINES		*= DEBUG
+	DEFINES		-= NDEBUG
+	DEFINES		-= QT_NO_DEBUG_OUTPUT
+} else {
+	TARGET		= ${proj_name}
+	BUILD		= release
+	CONFIG		-= debug
+	CONFIG		*= release
+	DEFINES		-= DEBUG
+	DEFINES		*= NDEBUG
+	DEFINES		*= QT_NO_DEBUG_OUTPUT
+}
+
+isEmpty(OBJECTS_DIR)    { OBJECTS_DIR   = tmp/\$\${OS}/\$\${BUILD} }
+isEmpty(MOC_DIR)        { MOC_DIR       = tmp/\$\${OS}/\$\${BUILD} }
+isEmpty(RCC_DIR)        { RCC_DIR       = tmp/\$\${OS}/\$\${BUILD} }
+message(\$\$_PRO_FILE_)
+EOF
 	qmake -Wall || exit 1
-	[ -f "Makefile.Debug" ] && \
-		sed -i -r '
-			s|-DQT[^ ]*||g;
-			s|-I[^ ]*/qt4[^ ]*||g;
-			s|-lQt[^ ]*||g;
-			s|^(DEFINES\s+=\s)|\1-DDEBUG|;
-			' Makefile.Debug
-	[ -f "Makefile.Release" ] && \
-		sed -i -r '
-			s|-DQT[^ ]*||g;
-			s|-I[^ ]*/qt4[^ ]*||g;
-			s|-lQt[^ ]*||g;
-			' Makefile.Release
-	make debug && make release || exit 1
+	if [ "${comprefix}" ] ; then
+		sed -i -r "
+			s|^(CC\s*=\s)(.*)$|\1${comprefix}\2|;
+			s|^(CXX\s*=\s)(.*)$|\1${comprefix}\2|;
+			s|^(LINK\s*=\s)(.*)$|\1${comprefix}\2|;
+			s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
+		" Makefile.Debug
+		sed -i -r "
+			s|^(CC\s*=\s)(.*)$|\1${comprefix}\2|;
+			s|^(CXX\s*=\s)(.*)$|\1${comprefix}\2|;
+			s|^(LINK\s*=\s)(.*)$|\1${comprefix}\2|;
+			s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
+		" Makefile.Release
+	fi
+	make debug || exit 1
+	if [ "${debug}" != "1" ] ; then
+		make release || exit 1
+	fi
 	;;
 *)
 	usage "Build Type not support ('${build_type}')"
