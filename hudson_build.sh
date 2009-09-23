@@ -98,6 +98,8 @@ isEmpty(OS) {
 	mac		{ OS = mac   }
 }
 
+QMAKE_CFLAGS *= -fsigned-char
+QMAKE_CXXFLAGS *= -fsigned-char
 QMAKE_LFLAGS *= ${linkopt}
 
 CONFIG *= debug_and_release warn_on
