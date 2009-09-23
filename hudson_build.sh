@@ -74,7 +74,8 @@ proj_tar="${JOB_NAME}-${BUILD_NUMBER}"
 pushd "${proj_dir}" &>/dev/null || exit 1
 case "${build_type}" in
 qt4)
-	qmake || exit 1
+	qmake -Wall || exit 1
+	make qmake || exit 1
 	make debug || exit 1
 	if [ "${debug}" != "1" ] ; then
 		make release || exit 1
@@ -141,6 +142,7 @@ EOF
 			s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
 		" Makefile.Release
 	fi
+	make qmake || exit 1
 	make debug || exit 1
 	if [ "${debug}" != "1" ] ; then
 		make release || exit 1
