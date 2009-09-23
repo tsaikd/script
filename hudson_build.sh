@@ -90,10 +90,13 @@ qtgenmake)
 	cat >> "${proj_file}" <<EOF
 QT -= core gui
 
-OS		= unknown
-win32	{ OS = win32 }
-unix	{ OS = unix  }
-mac		{ OS = mac   }
+OS		= ${comprefix%%-}
+isEmpty(OS) {
+	OS		= unknown
+	win32	{ OS = win32 }
+	unix	{ OS = unix  }
+	mac		{ OS = mac   }
+}
 
 QMAKE_LFLAGS *= ${linkopt}
 
