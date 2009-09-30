@@ -47,9 +47,12 @@ fi
 msg="$(lupdate "${pro}")"
 echo "${msg}"
 
-tsfile="$(perl -ane "s/^Updating '(.*?)'/print \$1/e" <<<"${msg}")"
-[ ! -f "${tsfile}" ] && die "ts file no found"
+tsfile="$(perl -ane "s/^Updating '(.*?)'/print \"\\\"\$1\\\"\n\"/e" <<<"${msg}")"
+for i in ${tsfile} ; do
+	eval i="${i}"
+	[ ! -f "${i}" ] && die "ts file no found ('${i}')"
 
-LC_ALL="zh_TW.utf8" linguist "${tsfile}"
-lrelease "${tsfile}"
+	LC_ALL="zh_TW.utf8" linguist "${i}"
+	lrelease "${i}"
+done
 
