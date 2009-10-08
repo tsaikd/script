@@ -1,0 +1,88 @@
+#!/bin/bash
+
+PN="${0##*/}"
+PD="${0%/*}"
+
+function usage() {
+	cat <<EOF
+Usage: ${PN} [Options] <Commit>
+Options:
+  -h
+     show this help message
+  -f <FILENAME>
+    auto generate reverse patch for the <FILENAME> in <Commit>
+  -p <Patch File Path>
+    use the indicate <Patch File Path>
+
+Commit:
+  Commit hash value
+
+Generate patch file:
+  Ex) git diff -R <Commit>~1 <File Path> > <Patch File>
+  Ex) git diff -R baa1824c~1 README.txt > /tmp/tmp_${PN}.patch
+EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+function die() {
+	echo "$@" >&2
+	exit 1
+}
+
+function checknecprog() {
+	local i
+	for i in "$@" ; do
+		type -p "${i}" &>/dev/null
+		if (($? != 0)) ; then
+			die "Necessary program '${i}' no found"
+		fi
+	done
+}
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o hf:p: -- "$@")"
+(($? != 0)) && usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	-f) patch_file="${2}" ; patch_from="f" ; shift 2 ;;
+	-p) patch_file="${2}" ; patch_from="p" ; shift 2 ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
+checknecprog cat cut grep git patch mktemp
+(($# < 1)) && usage "Invalid parameters"
+
+mod_commit="${1}"
+shift
+
+[ "${patch_file}" ] || usage "Please indicate the patch file with '-f' or '-p'"
+
+# check is in git repository
+msg="$(git branch 2>&1)"
+[ $? -ne 0 ] && die "${msg}"
+
+# get current branch
+cur_branch="$(git branch | grep "^*" | cut -b 3-)"
+
+# generate patch file if in mode '-f'
+if [ "${patch_from}" == "f" ] ; then
+	file_commit="${patch_file}"
+	patch_file="$(mktemp)" || die
+	git diff -R "${mod_commit}~1" "${file_commit}" > "${patch_file}" || die
+fi
+
+[ -z "$(cat "${patch_file}")" ] && die "Patch nothing"
+
+git checkout -b __tmp "${mod_commit}" || die
+patch -p1 < "${patch_file}" || die
+[ "${patch_from}" == "f" ] && rm -f "${patch_file}"
+git commit -a -m s || die
+git rebase HEAD "${cur_branch}" || die
+git rebase -i "${mod_commit}~1" || die
+git branch -D __tmp || die
+
