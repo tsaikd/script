@@ -1,10 +1,17 @@
 #!/bin/bash
 
+PN="${0##*/}"
+PD="${0%/*}"
+
+source "${PD}/lib/die"
+source "${PD}/lib/checknecprog"
+
 function usage() {
 	cat <<EOF
-Usage: $(basename "${0}") [Options] <Commit>
+Usage: ${PN} [Options] <Commit>
 Options:
   -h       : show this help message
+  -f       : force push
 
 Commit:
   Commit hash value
@@ -18,18 +25,23 @@ EOF
 	fi
 }
 
+checknecprog git cut grep
+
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o h -- "$@")"
+opt="$(getopt -o hf -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do
 	case "${1}" in
 	-h) usage ; shift ;;
+	-f) force_push=1 ; shift ;;
 	--) shift ; break ;;
 	*) echo "Internal error!" ; exit 1 ;;
 	esac
 done
+
+(($# < 1)) && usage "Invalid parameters"
 
 push_commit="${1}"
 shift
@@ -41,22 +53,17 @@ if [ $? -ne 0 ] ; then
 	exit 1
 fi
 
-# stash if need
-stash=0
-msg="$(git stash 2>&1)"
-if [ "${msg}" != "No local changes to save" ] ; then
-	stash=1
+# get some status
+cur_branch="$(grep "^*" <<<"${msg}" | cut -b 3-)"
+cur_remote="$(git config --get "branch.${cur_branch}.remote")"
+cur_merge="$(git config --get "branch.${cur_branch}.merge")"
+
+[ "${cur_remote}" ] || die "Empty remote branch"
+[ "${cur_merge}" ] || die "Empty merge branch"
+
+if [ "${force_push}" == "1" ] ; then
+	git push "${cur_remote}" "+${push_commit}:${cur_merge}" || die
 else
-	echo "${msg}"
+	git push "${cur_remote}" "${push_commit}:${cur_merge}" || die
 fi
-
-# get current commit
-cur_commit="$(git log -1 --pretty="format:%H")"
-
-git reset --hard "${push_commit}"
-git push
-git pull
-git reset --hard "${cur_commit}"
-
-[ "${stash}" == 1 ] && git stash pop
 
