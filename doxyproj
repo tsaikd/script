@@ -38,6 +38,8 @@ done
 
 checknecprog doxygen
 
+HAVE_DOT="$(type -p dot)"
+
 if [ -z "${projname}" ] ; then
 	buf="${PWD}"
 	projname="$(basename "${buf}")"
@@ -84,12 +86,25 @@ if [ "${projnum}" ] ; then
 	cat)"
 fi
 
+if [ "${HAVE_DOT}" ] ; then
+	Doxyfile="$(echo "${Doxyfile}" | \
+	sed -r "s/^(HAVE_DOT\s*=).*$/\1 YES/" | \
+	cat)"
+fi
+
 if ((F_EXTRACTALL == 1)) ; then
 	Doxyfile="$(echo "${Doxyfile}" | \
 	sed -r "s/^(EXTRACT_ALL\s*=).*$/\1 YES/" | \
 	sed -r "s/^(SHOW_USED_FILES\s*=).*$/\1 YES/" | \
 	cat)"
+	if [ "${HAVE_DOT}" ] ; then
+		Doxyfile="$(echo "${Doxyfile}" | \
+		sed -r "s/^(CALL_GRAPH\s*=).*$/\1 YES/" | \
+		sed -r "s/^(CALLER_GRAPH\s*=).*$/\1 YES/" | \
+		cat)"
+	fi
 fi
+
 if ((0)) ; then
 	sed -r "s/^(QT_AUTOBRIEF\s*=).*$/\1 YES/" | \
 	sed -r "s/^(SHOW_DIRECTORIES\s*=).*$/\1 YES/" | \
