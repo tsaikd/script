@@ -16,6 +16,7 @@ Options:
   --debug  : Build only debug mode (ignore release mode)
 
 Options for qtgenmake:
+  -P           : Only generate .pro file
   -D <DEFINE>  : Append other defines to project
   --compiler-prefix <PREFIX>
                : Set compiler prefix, useful for cross compile
@@ -38,7 +39,7 @@ EOF
 checknecprog cat sed qmake make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd:D: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
+opt="$(getopt -o hd:PD: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -46,6 +47,7 @@ while true ; do
 	case "${1}" in
 	-h) usage ; shift ;;
 	-d) proj_dir="$(readlink -f "${2}")" ; shift 2 ;;
+	-P) buildproj=1 ; shift ;;
 	-D) builddef="${builddef} ${2}" ; shift 2 ;;
 	--debug) debug=1 ; shift ;;
 	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
@@ -70,40 +72,41 @@ fi
 proj_tar="${JOB_NAME}-${BUILD_NUMBER}"
 
 pushd "${proj_dir}" &>/dev/null || exit 1
-case "${build_type}" in
-qt4)
-	qmake -Wall || exit 1
-	make qmake || exit 1
-	make debug || exit 1
-	if [ "${debug}" != "1" ] ; then
-		make release || exit 1
-	fi
-	;;
-qtgenmake)
-	qmake -project || exit 1
-	proj_file="$(basename "${PWD}").pro"
-	[ ! -f "${proj_file}" ] && \
-		proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
-	[ ! -f "${proj_file}" ] && die "no project file found"
-	proj_name="${proj_file%.pro}"
-	for i in ${builddef} ; do
-		echo "DEFINES *= ${i}" >> "${proj_file}"
-	done
-	if [ "${buildlib}" == "1" ] ; then
-		echo "TEMPLATE = lib" >> "${proj_file}"
-		if [ "${buildstatic}" == "1" ] ; then
-			echo "CONFIG *= staticlib" >> "${proj_file}"
-		else
-			echo "CONFIG *= dll" >> "${proj_file}"
+while true ; do
+	case "${build_type}" in
+	qt4)
+		qmake -Wall || exit 1
+		make qmake || exit 1
+		make debug || exit 1
+		if [ "${debug}" != "1" ] ; then
+			make release || exit 1
 		fi
-	fi
-	if [ "${comprefix}" ] ; then
-		echo "OS *= ${comprefix%%-}" >> "${proj_file}"
-	fi
-	if [ "${buildpch}" ] ; then
-		echo "PRECOMPILED_HEADER *= ${buildpch}" >> "${proj_file}"
-	fi
-	cat >> "${proj_file}" <<EOF
+		;;
+	qtgenmake)
+		qmake -project || exit 1
+		proj_file="$(basename "${PWD}").pro"
+		[ ! -f "${proj_file}" ] && \
+			proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
+		[ ! -f "${proj_file}" ] && die "no project file found"
+		proj_name="${proj_file%.pro}"
+		for i in ${builddef} ; do
+			echo "DEFINES *= ${i}" >> "${proj_file}"
+		done
+		if [ "${buildlib}" == "1" ] ; then
+			echo "TEMPLATE = lib" >> "${proj_file}"
+			if [ "${buildstatic}" == "1" ] ; then
+				echo "CONFIG *= staticlib" >> "${proj_file}"
+			else
+				echo "CONFIG *= dll" >> "${proj_file}"
+			fi
+		fi
+		if [ "${comprefix}" ] ; then
+			echo "OS *= ${comprefix%%-}" >> "${proj_file}"
+		fi
+		if [ "${buildpch}" ] ; then
+			echo "PRECOMPILED_HEADER *= ${buildpch}" >> "${proj_file}"
+		fi
+		cat >> "${proj_file}" <<EOF
 QT -= core gui
 
 isEmpty(OS) {
@@ -144,31 +147,34 @@ isEmpty(RCC_DIR)        { RCC_DIR       = tmp/\$\${OS}/\$\${BUILD} }
 isEmpty(DESTDIR)		{ DESTDIR		= tmp/\$\${OS} }
 message(\$\$_PRO_FILE_)
 EOF
-	qmake -Wall || exit 1
-	if [ "${comprefix}" ] ; then
-		sed -i -r "
-			s|^(CC\s*=\s)(.*)$|\1${comprefix}\2|;
-			s|^(CXX\s*=\s)(.*)$|\1${comprefix}\2|;
-			s|^(LINK\s*=\s)(.*)$|\1${comprefix}\2|;
-			s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
-		" Makefile.Debug
-		sed -i -r "
-			s|^(CC\s*=\s)(.*)$|\1${comprefix}\2|;
-			s|^(CXX\s*=\s)(.*)$|\1${comprefix}\2|;
-			s|^(LINK\s*=\s)(.*)$|\1${comprefix}\2|;
-			s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
-		" Makefile.Release
-	fi
-	make qmake || exit 1
-	make debug || exit 1
-	if [ "${debug}" != "1" ] ; then
-		make release || exit 1
-	fi
-	;;
-*)
-	usage "Build Type not support ('${build_type}')"
-	;;
-esac
+		[ "${buildproj}" == "1" ] && break
+		qmake -Wall || exit 1
+		if [ "${comprefix}" ] ; then
+			sed -i -r "
+				s|^(CC\s*=\s)(.*)$|\1${comprefix}\2|;
+				s|^(CXX\s*=\s)(.*)$|\1${comprefix}\2|;
+				s|^(LINK\s*=\s)(.*)$|\1${comprefix}\2|;
+				s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
+			" Makefile.Debug
+			sed -i -r "
+				s|^(CC\s*=\s)(.*)$|\1${comprefix}\2|;
+				s|^(CXX\s*=\s)(.*)$|\1${comprefix}\2|;
+				s|^(LINK\s*=\s)(.*)$|\1${comprefix}\2|;
+				s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
+			" Makefile.Release
+		fi
+		make qmake || exit 1
+		make debug || exit 1
+		if [ "${debug}" != "1" ] ; then
+			make release || exit 1
+		fi
+		;;
+	*)
+		usage "Build Type not support ('${build_type}')"
+		;;
+	esac
+	break
+done
 popd &>/dev/null
 
 if [ $# -gt 0 ] ; then
