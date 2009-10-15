@@ -16,11 +16,12 @@ Options:
   --debug  : Build only debug mode (ignore release mode)
 
 Options for qtgenmake:
-  -D <DEFINE> : Append other defines to project
+  -D <DEFINE>  : Append other defines to project
   --compiler-prefix <PREFIX>
-              : Set compiler prefix, useful for cross compile
-  --static    : Build with static link
-  --lib       : Build project as library
+               : Set compiler prefix, useful for cross compile
+  --static     : Build with static link
+  --lib        : Build project as library
+  --pch <FILE> : Set pre-compile header for project
 
 Build Type:
   qt4       : Qt Version 4
@@ -37,7 +38,7 @@ EOF
 checknecprog cat sed qmake make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd:D: -l compiler-prefix: -l static -l debug -l lib -- "$@")"
+opt="$(getopt -o hd:D: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -50,6 +51,7 @@ while true ; do
 	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
 	--static) buildstatic=1 ; linkopt="${linkopt} -static" ; shift ;;
 	--lib) buildlib=1 ; shift ;;
+	--pch) buildpch="${2}" ; shift 2 ;;
 	--) shift ; break ;;
 	*) echo "Internal error!" ; exit 1 ;;
 	esac
@@ -97,6 +99,9 @@ qtgenmake)
 	fi
 	if [ "${comprefix}" ] ; then
 		echo "OS *= ${comprefix%%-}" >> "${proj_file}"
+	fi
+	if [ "${buildpch}" ] ; then
+		echo "PRECOMPILED_HEADER *= ${buildpch}" >> "${proj_file}"
 	fi
 	cat >> "${proj_file}" <<EOF
 QT -= core gui
