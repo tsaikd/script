@@ -11,15 +11,16 @@ function usage() {
 Usage: ${PN} [Options] <Build Type> [Archive file1] [Archive file2]...
 
 Options:
-  -h        : Show this help message
-  -d <DIR>  : Set working directory
-  --debug   : Build only debug mode (ignore release mode)
+  -h       : Show this help message
+  -d <DIR> : Set working directory
+  --debug  : Build only debug mode (ignore release mode)
 
 Options for qtgenmake:
+  -D <DEFINE> : Append other defines to project
   --compiler-prefix <PREFIX>
-            : Set compiler prefix, useful for cross compile
-  --static  : Build with static link
-  --lib     : Build project as library
+              : Set compiler prefix, useful for cross compile
+  --static    : Build with static link
+  --lib       : Build project as library
 
 Build Type:
   qt4       : Qt Version 4
@@ -36,7 +37,7 @@ EOF
 checknecprog cat sed qmake make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd: -l compiler-prefix: -l static -l debug -l lib -- "$@")"
+opt="$(getopt -o hd:D: -l compiler-prefix: -l static -l debug -l lib -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -44,6 +45,7 @@ while true ; do
 	case "${1}" in
 	-h) usage ; shift ;;
 	-d) proj_dir="$(readlink -f "${2}")" ; shift 2 ;;
+	-D) builddef="${builddef} ${2}" ; shift 2 ;;
 	--debug) debug=1 ; shift ;;
 	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
 	--static) buildstatic=1 ; linkopt="${linkopt} -static" ; shift ;;
@@ -82,6 +84,9 @@ qtgenmake)
 		proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
 	[ ! -f "${proj_file}" ] && die "no project file found"
 	proj_name="${proj_file%.pro}"
+	for i in ${builddef} ; do
+		echo "DEFINES *= ${i}" >> "${proj_file}"
+	done
 	if [ "${buildlib}" == "1" ] ; then
 		echo "TEMPLATE = lib" >> "${proj_file}"
 		if [ "${buildstatic}" == "1" ] ; then
