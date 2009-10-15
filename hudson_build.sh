@@ -1,6 +1,10 @@
 #!/bin/bash
 export LANG=C
-PN="$(basename "${0}")"
+PN="${0##*/}"
+PD="${0%/*}"
+
+source "${PD}/lib/die"
+source "${PD}/lib/checknecprog"
 
 function usage() {
 	cat <<EOF
@@ -9,12 +13,13 @@ Usage: ${PN} [Options] <Build Type> [Archive file1] [Archive file2]...
 Options:
   -h        : Show this help message
   -d <DIR>  : Set working directory
+  --debug   : Build only debug mode (ignore release mode)
+
+Options for qtgenmake:
   --compiler-prefix <PREFIX>
             : Set compiler prefix, useful for cross compile
-              only effect in "qtgenmake" build type
   --static  : Build with static link
-              only effect in "qtgenmake" build type
-  --debug   : Build only debug mode (ignore release mode)
+  --lib     : Build project as library
 
 Build Type:
   qt4       : Qt Version 4
@@ -28,22 +33,10 @@ EOF
 	fi
 }
 
-function die() {
-	echo "$@" >&2
-	exit 1
-}
-
-function checknecprog() {
-	local i
-	for i in "$@" ; do
-		[ "$(type -t "${i}")" ] || die "Necessary program '${i}' no found"
-	done
-}
-
-checknecprog sed qmake make 7z
+checknecprog cat sed qmake make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd: -l compiler-prefix: -l static -l debug -- "$@")"
+opt="$(getopt -o hd: -l compiler-prefix: -l static -l debug -l lib -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -51,9 +44,10 @@ while true ; do
 	case "${1}" in
 	-h) usage ; shift ;;
 	-d) proj_dir="$(readlink -f "${2}")" ; shift 2 ;;
-	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
-	--static) linkopt="${linkopt} -static" ; shift ;;
 	--debug) debug=1 ; shift ;;
+	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
+	--static) buildstatic=1 ; linkopt="${linkopt} -static" ; shift ;;
+	--lib) buildlib=1 ; shift ;;
 	--) shift ; break ;;
 	*) echo "Internal error!" ; exit 1 ;;
 	esac
@@ -61,7 +55,7 @@ done
 
 build_type="${1}" ; shift
 true ${proj_dir:=${PWD}}
-true ${JOB_NAME:=$(basename "${proj_dir}")}
+true ${JOB_NAME:=${proj_dir##*/}}
 if [ -z "${BUILD_NUMBER}" ] ; then
 	BUILD_NUMBER=0
 	while [ -f "${JOB_NAME}-${BUILD_NUMBER}.7z" ] \
@@ -88,19 +82,31 @@ qtgenmake)
 		proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
 	[ ! -f "${proj_file}" ] && die "no project file found"
 	proj_name="${proj_file%.pro}"
+	if [ "${buildlib}" == "1" ] ; then
+		echo "TEMPLATE = lib" >> "${proj_file}"
+		if [ "${buildstatic}" == "1" ] ; then
+			echo "CONFIG *= staticlib" >> "${proj_file}"
+		else
+			echo "CONFIG *= dll" >> "${proj_file}"
+		fi
+	fi
+	if [ "${comprefix}" ] ; then
+		echo "OS *= ${comprefix%%-}" >> "${proj_file}"
+	fi
 	cat >> "${proj_file}" <<EOF
 QT -= core gui
 
-OS		= ${comprefix%%-}
 isEmpty(OS) {
-	OS		= unknown
 	win32	{ OS = win32 }
 	unix	{ OS = unix  }
 	mac		{ OS = mac   }
+	isEmpty(OS) { OS = unknown }
 }
 
-QMAKE_CFLAGS *= -fsigned-char
-QMAKE_CXXFLAGS *= -fsigned-char
+unix {
+	QMAKE_CFLAGS *= -fsigned-char
+	QMAKE_CXXFLAGS *= -fsigned-char
+}
 QMAKE_LFLAGS *= ${linkopt}
 
 CONFIG *= debug_and_release warn_on
@@ -125,6 +131,7 @@ CONFIG(debug, debug|release) {
 isEmpty(OBJECTS_DIR)    { OBJECTS_DIR   = tmp/\$\${OS}/\$\${BUILD} }
 isEmpty(MOC_DIR)        { MOC_DIR       = tmp/\$\${OS}/\$\${BUILD} }
 isEmpty(RCC_DIR)        { RCC_DIR       = tmp/\$\${OS}/\$\${BUILD} }
+isEmpty(DESTDIR)		{ DESTDIR		= tmp/\$\${OS} }
 message(\$\$_PRO_FILE_)
 EOF
 	qmake -Wall || exit 1
