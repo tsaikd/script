@@ -15,31 +15,27 @@ Options:
   -d <DIR> : Set working directory
   --debug  : Build only debug mode (ignore release mode)
 
-Options for qtgenmake:
-  -P           : Only generate .pro file
-  -D <DEFINE>  : Append other defines to project
+Options for qtgenmake: (*: means the option can set more than once)
+  -P            : Only generate .pro file
+  -i <FILE>    *: Include other .pri in project file
+  -D <DEFINE>  *: Append other defines to project
   --compiler-prefix <PREFIX>
-               : Set compiler prefix, useful for cross compile
-  --static     : Build with static link
-  --lib        : Build project as library
-  --pch <FILE> : Set pre-compile header for project
+                : Set compiler prefix, useful for cross compile
+  --static      : Build with static link
+  --lib         : Build project as library
+  --pch <FILE>  : Set pre-compile header for project
 
 Build Type:
   qt4       : Qt Version 4
   qtgenmake : Qt generate project file automatically
 EOF
-	if [ $# -gt 0 ] ; then
-		echo
-		die "$@"
-	else
-		exit 0
-	fi
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
 checknecprog cat sed qmake make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd:PD: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
+opt="$(getopt -o hd:Pi:D: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -48,7 +44,8 @@ while true ; do
 	-h) usage ; shift ;;
 	-d) proj_dir="$(readlink -f "${2}")" ; shift 2 ;;
 	-P) buildproj=1 ; shift ;;
-	-D) builddef="${builddef} ${2}" ; shift 2 ;;
+	-i) buildinc=("${buildinc[@]}" "${2}") ; shift 2 ;;
+	-D) builddef=("${builddef[@]}" "${2}") ; shift 2 ;;
 	--debug) debug=1 ; shift ;;
 	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
 	--static) buildstatic=1 ; linkopt="${linkopt} -static" ; shift ;;
@@ -89,7 +86,10 @@ while true ; do
 			proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
 		[ ! -f "${proj_file}" ] && die "no project file found"
 		proj_name="${proj_file%.pro}"
-		for i in ${builddef} ; do
+		for i in "${buildinc[@]}" ; do
+			echo "include(${i})" >> "${proj_file}"
+		done
+		for i in "${builddef[@]}" ; do
 			echo "DEFINES *= ${i}" >> "${proj_file}"
 		done
 		if [ "${buildlib}" == "1" ] ; then
