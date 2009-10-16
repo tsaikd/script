@@ -1,0 +1,65 @@
+#!/bin/bash
+# gitcobr: GIT CheckOut all BRanches
+
+PN="${0##*/}"
+PD="${0%/*}"
+
+source "${PD}/lib/die"
+source "${PD}/lib/checknecprog"
+
+function usage() {
+	cat <<EOF
+Usage: ${PN} [Options] <repository> [<directory>]
+Options:
+  -h       : show this help message
+EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+checknecprog git cut
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o h -- "$@")"
+(($? != 0)) && usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
+(($# < 1)) && usage "Invalid parameters"
+
+repo_from="${1%%/}"
+shift
+
+repo_dir="${1}"
+shift
+
+if [ "${repo_dir}" ] ; then
+	git clone "${repo_from}" "${repo_dir}" || die "git clone"
+else
+	git clone "${repo_from}" || die "git clone"
+	repo_dir="${repo_from##*/}"
+	if [ "${repo_dir}" == ".git" ] ; then
+		repo_dir="${repo_from%/*}"
+		repo_dir="${repo_dir##*/}"
+	fi
+	[ -d "${repo_dir}" ] || die "repository directory not found in '${repo_dir}'"
+fi
+
+pushd "${repo_dir}" >/dev/null
+
+cur_branch="$(git symbolic-ref HEAD | cut -d'/' -f3)" || die "cur_head"
+for i in $(git branch -r | cut -d'/' -f2) ; do
+	[ "${i}" == "HEAD" ] && continue
+	[ "${i}" == "${cur_branch}" ] && continue
+	git checkout -t -b "${i}" "origin/${i}" || die "git checkout track"
+done
+git checkout "${cur_branch}"
+
+popd >/dev/null
+
