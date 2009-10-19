@@ -11,6 +11,8 @@
 #     E_MSG_LV
 #     LAST_E_TYPE
 
+if ! type set_quiet >/dev/null 2>&1 ; then
+
 # $1 := Level number
 #    0 : eerror ewarn einfo einfon ebegin [eend] vecho vechon (default)
 #    1 : eerror ewarn [eend]
@@ -217,5 +219,5 @@ yes|true) unset_colors ;;
 no|false) set_colors ;;
 esac
 
-true
+fi
 
