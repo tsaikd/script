@@ -1,9 +1,11 @@
 #!/bin/bash
 
+type bc >/dev/null || exit $?
+
 # $1 = input size (byte)
 # $2 = scale number (int)
 # echo human size (any unit in BbKkMmGgTt)
-function hsize () {
+hsize() {
 	[ $# -ne 0 ] && [ -z "${1}" ] && echo "0B" && return
 	[ "$(echo "${1}" | grep "[^-+0-9]")" ] && echo "${1}" && return
 
@@ -39,7 +41,7 @@ if (size<1024) {
 
 # $1 = input size (any unit in BbKkMmGgTt)
 # echo machine size (byte)
-function msize () {
+msize() {
 	[ $# -ne 0 ] && [ -z "${1}" ] && echo "0" && return
 	[ "$(echo "${1}" | grep "[^-+0-9.BbKkMmGgTt]")" ] && echo "${1}" && return
 
