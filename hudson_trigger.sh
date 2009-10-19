@@ -1,7 +1,12 @@
 #!/bin/bash
 export LANG=C
-PN="$(basename "${0}")"
-PD="$(readlink -f "${0}")" && PD="${PD%/*}"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
+source "${PD}/conf/hudson_trigger.conf"
+
+[ "${hudson_url}" ] || die "Please set \$hudson_url in ${PD}/conf/hudson_trigger.conf"
 
 function usage() {
 	cat <<EOF
@@ -9,28 +14,14 @@ Usage: ${PN} [Options] <Project Name> <Token>
 
 Options:
   -h        : Show this help message
+
+Current Config:
+  hudson_url: '${hudson_url}'
 EOF
-	if [ $# -gt 0 ] ; then
-		echo
-		die "$@"
-	else
-		exit 0
-	fi
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-function die() {
-	echo "$@" >&2
-	exit 1
-}
-
-function checknecprog() {
-	local i
-	for i in "$@" ; do
-		[ "$(type -t "${i}")" ] || die "Necessary program '${i}' no found"
-	done
-}
-
-checknecprog wget
+type getopt cat wget >/dev/null || exit $?
 
 (($# != 2)) && usage "Invalid parameters"
 opt="$(getopt -o h -- "$@")"
@@ -45,15 +36,10 @@ while true ; do
 	esac
 done
 
-source "${PD}/conf/hudson_trigger.conf"
-
-[ -z "${hudson_url}" ] && die "Please set \$hudson_url in ${PD}/conf/hudson_trigger.conf"
-
 proj_name="${1}" ; shift
 token="${1}" ; shift
 
 wget -q -O /dev/null \
 	"${hudson_url}/job/${proj_name}/build" \
 	--post-data="token=${token}"
-
 

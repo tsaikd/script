@@ -1,8 +1,13 @@
 #!/bin/bash
 
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
+
 function usage() {
 	cat <<EOF
-Usage: $(basename "${0}") [Options] [<Tag>[:/Path]]
+Usage: ${PN} [Options] [<Tag>[:/Path]]
 Options:
   -h       : show this help message
 
@@ -40,9 +45,9 @@ function get_git_tag() {
 	echo "${tag}"
 }
 
-#(($# == 0)) && usage && exit
-opt="$(getopt -o h -- "$@")"
-(($? != 0)) && usage && exit 1
+type getopt cat tail git >/dev/null || exit $?
+
+opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do
@@ -54,15 +59,11 @@ while true ; do
 done
 
 # check is in git repository
-msg="$(git branch 2>&1)"
-if [ $? -ne 0 ] ; then
-	echo "${msg}"
-	exit 1
-fi
+msg="$(git branch)" || die
 
 # get appname
 dir="${PWD}"
-appname="$(basename "${dir}")"
+appname="${dir##*/}"
 while [ "${appname}" == "src" ] ; do
 	dir="$(dirname "${dir}")"
 	appname="$(basename "${dir}")"

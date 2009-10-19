@@ -1,28 +1,20 @@
 #!/bin/bash
 
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
+
 function usage() {
 	cat <<EOF
-Usage: $(basename "${0}") [Options] [PRO FILE]
+Usage: ${PN} [Options] [PRO FILE]
 Options:
   -h       : show this help message
 EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-function die() {
-	echo "$@" >&2
-	exit 1
-}
-
-function checknecprog() {
-	local i
-	for i in "$@" ; do
-		type -p "${i}" &>/dev/null
-		if (($? != 0)) ; then
-			die "Necessary program '${i}' no found"
-		fi
-	done
-}
+type getopt cat perl lupdate linguist lrelease >/dev/null || exit $?
 
 opt="$(getopt -o h -- "$@")"
 (($? != 0)) && usage
@@ -34,8 +26,6 @@ while true ; do
 	*) die "Internal error!" ;;
 	esac
 done
-
-checknecprog perl lupdate linguist lrelease
 
 pro="${1}"
 if [ -z "${pro}" ] ; then

@@ -1,6 +1,9 @@
 #!/bin/bash
 
-PN="$(basename "${0}")"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
 
 function usage() {
 	cat <<EOF
@@ -15,34 +18,28 @@ EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-function die() {
-	echo "$@" >&2
-	exit 1
-}
+case "${PN}" in
+t7z) type 7z >/dev/null || exit $? ;;
+*) type tar >/dev/null || exit $? ;;
+esac
 
-opt="$(getopt -o hD: -- "$@")"
-(($? != 0)) && usage
+opt="$(getopt -o hD: -- "$@")" || usage "Parse options failed"
+
 eval set -- "${opt}"
 while true ; do
 	case "${1}" in
 	-h) usage ;;
-	-D) tdir="${2%/}" ; shift 2 ;;
+	-D) tdir="${2%%/}" ; shift 2 ;;
 	--) shift ; break ;;
 	*) die "Internal error!" ;;
 	esac
 done
 
-if [ "${1}" ] ; then
-	src="${1}"
-else
-	src="."
-fi
-
-src="$(readlink -f "${src}")"
+src="$(readlink -f "${1:-.}")"
 [ "${src}" == "/" ] && die "Input path cannot be '/'"
 
-d="$(dirname "${src}")"
-src="$(basename "${src}")"
+d="${src%/*}"
+src="${src##*/}"
 
 if [ "${PN}" == "t7z" ] ; then
 	tar="${src}.7z"
@@ -58,12 +55,9 @@ fi
 
 pushd "${d}" &>/dev/null
 
-if [ ! -e "${src}" ] ; then
-	echo "'${src}' not found" >&2
-	exit 1
-fi
+[ -e "${src}" ] || die "'${src}' not found"
 
-pwd
+echo "${PWD}"
 if [ "${PN}" == "t7z" ] ; then
 	7z a -m0=lzma -mx=9 -mfb=273 -md=32m "${tar}" "${src}"
 else

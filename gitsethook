@@ -1,20 +1,17 @@
 #!/bin/bash
 
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
+
 function usage() {
 	cat <<EOF
-Usage: ${0} <Project>
+Usage: ${PN} <Project>
+Options:
+  -h       : show this help message
 EOF
-	if [ $# -gt 0 ] ; then
-		echo "$@" >&2
-		exit 1
-	else
-		exit
-	fi
-}
-
-function die() {
-	echo "$@" >&2
-	exit 1
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
 # $1: command
@@ -43,6 +40,20 @@ function sethook() {
 	addCmdToFile "exec git update-server-info" "post-receive"
 	popd &>/dev/null
 }
+
+type getopt cat grep chmod git >/dev/null || exit $?
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
 
 for i in "$@" ; do
 	sethook "${i}"

@@ -1,7 +1,9 @@
 #!/bin/bash
 
-PN="${0##*/}"
-PD="${0%/*}"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
 
 function usage() {
 	cat <<EOF
@@ -24,24 +26,10 @@ EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-function die() {
-	echo "$@" >&2
-	exit 1
-}
-
-function checknecprog() {
-	local i
-	for i in "$@" ; do
-		type -p "${i}" &>/dev/null
-		if (($? != 0)) ; then
-			die "Necessary program '${i}' no found"
-		fi
-	done
-}
+type getopt cat cut grep git patch mktemp >/dev/null || exit $?
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hf:p: -- "$@")"
-(($? != 0)) && usage "Parse options failed"
+opt="$(getopt -o hf:p: -- "$@")" || usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do
@@ -53,8 +41,6 @@ while true ; do
 	*) echo "Internal error!" ; exit 1 ;;
 	esac
 done
-
-checknecprog cat cut grep git patch mktemp
 (($# < 1)) && usage "Invalid parameters"
 
 mod_commit="${1}"

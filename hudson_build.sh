@@ -1,10 +1,9 @@
 #!/bin/bash
 export LANG=C
-PN="${0##*/}"
-PD="${0%/*}"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
 
 source "${PD}/lib/die"
-source "${PD}/lib/checknecprog"
 
 function usage() {
 	cat <<EOF
@@ -32,7 +31,7 @@ EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-checknecprog cat sed qmake make 7z
+type getopt cat sed qmake make 7z >/dev/null || exit $?
 
 (($# == 0)) && usage "Invalid parameters"
 opt="$(getopt -o hd:Pi:D: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
@@ -81,7 +80,7 @@ while true ; do
 		;;
 	qtgenmake)
 		qmake -project || exit 1
-		proj_file="$(basename "${PWD}").pro"
+		proj_file="${PWD##*/}.pro"
 		[ ! -f "${proj_file}" ] && \
 			proj_file="$(ls -1 *.pro 2>/dev/null | head -n 1)"
 		[ ! -f "${proj_file}" ] && die "no project file found"

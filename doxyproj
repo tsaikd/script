@@ -1,8 +1,13 @@
 #!/bin/bash
 
-function showhelp() {
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
+
+function usage() {
 	cat <<EOF
-Usage: ${0} [OPTIONS]
+Usage: ${PN} [OPTIONS]
 Options:
 	-h        : show this help message
 	-p <name> : set project name by hand instead of detection
@@ -10,24 +15,18 @@ Options:
 	-C <dir>  : set output dir instead of "./html/"
 	-D        : debug mode
 EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-function checknecprog() {
-	type -p "${1}" &>/dev/null
-	if (($? != 0)) ; then
-		echo "Necessary program '${1}' no found"
-		exit 1
-	fi
-}
+type getopt cat grep sed less doxygen >/dev/null || exit $?
 
-opt="$(getopt -o hp:aC:D -- "$@")"
-(($? != 0)) && showhelp && exit 1
+opt="$(getopt -o hp:aC:D -- "$@")" || usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do
 	case "${1}" in
-	-h) showhelp ; exit; shift ;;
-	-p) projname="$(basename "${2}")" ; shift 2 ;;
+	-h) usage ; shift ;;
+	-p) projname="${2##*/}" ; shift 2 ;;
 	-a) F_EXTRACTALL=1 ; shift ;;
 	-C) OUT_DIR="${2}" ; shift 2 ;;
 	-D) F_DEBUG=1 ; shift ;;
@@ -36,21 +35,19 @@ while true ; do
 	esac
 done
 
-checknecprog doxygen
-
-HAVE_DOT="$(type -p dot)"
+HAVE_DOT="$(type dot 2>/dev/null)"
 
 if [ -z "${projname}" ] ; then
 	buf="${PWD}"
-	projname="$(basename "${buf}")"
+	projname="${buf##*/}"
 	while [ "$(grep -E "^(src|tmp)$" <<<"${projname}")" ] ; do
-		buf="$(dirname "${buf}")"
-		projname="$(basename "${buf}")"
+		buf="${buf%/*}"
+		projname="${buf##*/}"
 	done
 fi
 
 if [ -z "${projnum}" ] ; then
-	if [ "$(type -p git)" ] ; then
+	if [ "$(type git 2>/dev/null)" ] ; then
 		head="$(git log -n 1 --pretty=format:'%H' 2>/dev/null)"
 		if [ "${head}" ] ; then
 			tag="$(git tag | tail -n 1)"

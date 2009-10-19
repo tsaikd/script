@@ -1,11 +1,10 @@
 #!/bin/bash
 # gitcobr: GIT CheckOut all BRanches
 
-PN="${0##*/}"
-PD="${0%/*}"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
 
 source "${PD}/lib/die"
-source "${PD}/lib/checknecprog"
 
 function usage() {
 	cat <<EOF
@@ -16,11 +15,10 @@ EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-checknecprog git cut
+type getopt cat cut git >/dev/null || exit $?
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o h -- "$@")"
-(($? != 0)) && usage "Parse options failed"
+opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do

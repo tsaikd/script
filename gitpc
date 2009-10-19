@@ -1,10 +1,9 @@
 #!/bin/bash
 
-PN="${0##*/}"
-PD="${0%/*}"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
 
 source "${PD}/lib/die"
-source "${PD}/lib/checknecprog"
 
 function usage() {
 	cat <<EOF
@@ -16,20 +15,13 @@ Options:
 Commit:
   Commit hash value
 EOF
-	if [ $# -gt 0 ] ; then
-		echo
-		echo "$@" >&2
-		exit 1
-	else
-		exit 0
-	fi
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-checknecprog git cut grep
+type getopt cat grep cut git >/dev/null || exit $?
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hf -- "$@")"
-(($? != 0)) && usage "Parse options failed"
+opt="$(getopt -o hf -- "$@")" || usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do
