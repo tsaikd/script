@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# $1: project path
+get_proj_name() {
+	local dir="${1%%/}"
+	local projname="${dir##*/}"
+
+	while true ; do
+		case "${projname}" in
+		bin) ;;
+		etc) ;;
+		src) ;;
+		*) break ;;
+		esac
+		dir="${dir%/*}"
+		projname="${dir##*/}"
+	done
+
+	case "${projname}" in
+	"") ;;
+	/) ;;
+	.) ;;
+	*) echo "${projname}" ; return 0 ;;
+	esac
+
+	echo "get project name failed ('${dir}')" >&2
+	return 1
+}
+
