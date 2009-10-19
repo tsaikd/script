@@ -4,6 +4,8 @@ PN="${BASH_SOURCE[0]##*/}"
 PD="${BASH_SOURCE[0]%/*}"
 
 source "${PD}/lib/die"
+source "${PD}/lib/get_proj_name"
+source "${PD}/lib/convsize.sh"
 
 function usage() {
 	cat <<EOF
@@ -15,6 +17,7 @@ Tag:
   tag of git, can be "HEAD" for lastest tag, use 'git tag' to list all TAGs
   default "HEAD"
 EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
 function get_git_tag() {
@@ -52,7 +55,7 @@ opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
 eval set -- "${opt}"
 while true ; do
 	case "${1}" in
-	-h) usage ; exit; shift ;;
+	-h) usage ; shift ;;
 	--) shift ; break ;;
 	*) echo "Internal error!" ; exit 1 ;;
 	esac
@@ -62,16 +65,7 @@ done
 msg="$(git branch)" || die
 
 # get appname
-dir="${PWD}"
-appname="${dir##*/}"
-while [ "${appname}" == "src" ] ; do
-	dir="$(dirname "${dir}")"
-	appname="$(basename "${dir}")"
-done
-if [ "${appname}" == "/" ] \
-	|| [ "${appname}" == "." ] ; then
-	echo "Detected invalid appname ('${appname}')" >&2
-fi
+appname="$(get_proj_name "${PWD}")" || die
 
 gtag="${1:-HEAD}"
 ARCHIVE_TAG="$(get_git_tag "${gtag}")" || exit $?
@@ -85,7 +79,6 @@ outname="${tarname}.zip"
 git archive --format=zip -9 --prefix="${tarname}/" "${ARCHIVE_TAG}" > "${outname}"
 if [ $? -eq 0 ] ; then
 	size="$(stat -c %s "${outname}")"
-	size="$(bc <<<"${size} / 1024")"
-	echo "${outname} (${size}KB) archive successfully"
+	echo "${outname} ($(hsize "${size}")) archive successfully"
 fi
 
