@@ -148,6 +148,7 @@ message(\$\$_PRO_FILE_)
 EOF
 		[ "${buildproj}" == "1" ] && break
 		qmake -Wall || exit 1
+		make qmake || exit 1
 		if [ "${comprefix}" ] ; then
 			sed -i -r "
 				s|^(CC\s*=\s)(.*)$|\1${comprefix}\2|;
@@ -162,7 +163,6 @@ EOF
 				s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
 			" Makefile.Release
 		fi
-		make qmake || exit 1
 		make debug || exit 1
 		if [ "${debug}" != "1" ] ; then
 			make release || exit 1
