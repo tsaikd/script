@@ -3,6 +3,7 @@ export LANG=C
 PN="${BASH_SOURCE[0]##*/}"
 PD="${BASH_SOURCE[0]%/*}"
 
+source "${PD}/lib/env_ccache"
 source "${PD}/lib/die"
 
 function usage() {
