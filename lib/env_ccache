@@ -1,0 +1,14 @@
+#!/bin/sh
+
+if type ccache >/dev/null 2>&1 ; then
+	if [ -z "$(echo "${PATH}" | grep "ccache")" ] ; then
+		if [ -d "/usr/lib/ccache/bin" ] ; then
+			export PATH="/usr/lib/ccache/bin:${PATH}"
+		elif [ -x "/usr/lib/ccache/gcc" ] ; then
+			export PATH="/usr/lib/ccache:${PATH}"
+		else
+			echo "ccache detected, but unknown path!!" >&2
+		fi
+	fi
+fi
+
