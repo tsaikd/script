@@ -11,6 +11,7 @@ Usage: ${PN} [Options] [Input path]
 Options:
   -h       : show this help message
   -D <DIR> : set output dir
+  -f       : compress in fast mode (effect in t7z mode)
 
 Default input path: "."
 Default output dir: dirname of input path
@@ -23,13 +24,14 @@ t7z) type 7z >/dev/null || exit $? ;;
 *) type tar >/dev/null || exit $? ;;
 esac
 
-opt="$(getopt -o hD: -- "$@")" || usage "Parse options failed"
+opt="$(getopt -o hD:f -- "$@")" || usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do
 	case "${1}" in
 	-h) usage ;;
 	-D) tdir="${2%%/}" ; shift 2 ;;
+	-f) fastmode=1 ; shift ;;
 	--) shift ; break ;;
 	*) die "Internal error!" ;;
 	esac
@@ -59,7 +61,11 @@ pushd "${d}" &>/dev/null
 
 echo "${PWD}"
 if [ "${PN}" == "t7z" ] ; then
-	7z a -m0=lzma -mx=9 -mfb=273 -md=32m "${tar}" "${src}"
+	if [ "${fastmode}" == 1 ] ; then
+		7z a -m0=lzma -mx=3 -mfb=273 -md=32m "${tar}" "${src}"
+	else
+		7z a -m0=lzma -mx=9 -mfb=273 -md=32m "${tar}" "${src}"
+	fi
 else
 	tar cjvpf "${tar}" "${src}"
 fi
