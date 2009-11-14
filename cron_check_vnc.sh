@@ -1,49 +1,55 @@
 #!/bin/bash
 
-PN="$(basename "${0}")"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/die"
+
 function usage() {
 	cat <<EOF
-Usage: ${PN} <vnc port>
+Usage: ${PN} [Options] <vnc port> :<vnc display> [--] [vncserver options]
+  -h       : show this help message
+
+Example:
+  cron_check_vnc.sh 5901 :1 -- -geometry 1280x1024
 EOF
-	if [ $# -gt 0 ] ; then
-		echo
-		echo "$@"
-		exit 1
-	else
-		exit
-	fi
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-vncstat="1"
-function check_vncstat() {
-	vncstat="${1}"
-	case "${vncstat}" in
-#	0) echo "vnc is running" >&2 ;;
-	1) echo "vnc status unknown" >&2 ;;
-	2) echo "vnc port (${vncport}) is running by others" >&2 ;;
-	3) echo "vnc not running on the port in this machine" >&2 ;;
+type getopt cat awk cut vncserver >/dev/null || exit $?
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
 	esac
-	if [ "${vncstat}" -eq 3 ] ; then
-		vncserver ":${vncport}"
-	fi
-	exit "${vncstat}"
-}
+done
+
+(($# < 2)) && usage "Invalid parameters"
+
+[ -z "${HOME}" ] && die "env 'HOME' not yet set"
 
 vncport="${1}" && shift
 [ -z "${vncport}" ] && usage "vnc port not yet set"
 
-user="$(id -un)"
-eval home="~${user}"
-vncdir="${home}/.vnc"
+vncdisplay="${1}" && shift
+[ -z "${vncdisplay}" ] && usage "vnc display not yet set"
 
-vncpid="$(netstat -tlnp 2>&1 | grep ":${vncport} " | awk '{print $7}' | awk -F '/' '{print $1}')"
-[ -z "${vncpid}" ] && check_vncstat "3"
+vncdir="${HOME}/.vnc"
+[ ! -d "${vncdir}" ] && die "vnc dir not found ('${vncdir}')"
 
-[ ! -d "${vncdir}" ] && check_vncstat "2"
-pushd "${vncdir}" &>/dev/null
+vncpid="$(netstat -tlnp 2>&1 | grep ":${vncport}\\>" | awk '{print $7}' | cut -d'/' -f1)"
+if [ -z "${vncpid}" ] ; then
+	echo "vnc not running on the port in this machine" >&2
+	vncserver "${vncdisplay}" "$@"
+	exit $?
+fi
 
-vncpfile="$(grep -l "${vncpid}" *.pid 2>/dev/null)"
-[ -z "${vncpfile}" ] && check_vncstat "2"
-
-popd &>/dev/null
+vncpfile="$(grep -l "\\<${vncpid}\\>" "${vncdir}/"*.pid 2>/dev/null)"
+[ -z "${vncpfile}" ] && die "vnc port (${vncport}) is running by others"
 
