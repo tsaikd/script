@@ -1,40 +1,59 @@
 #!/bin/bash
 
-PN="$(basename "${0}")"
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+[ -r "${PD}/conf/${PN%.sh}.conf" ] && source "${PD}/conf/${PN%.sh}.conf"
+source "${PD}/lib/die"
+
 function usage() {
 	cat <<EOF
-Usage: ${PN} <UUID>
+Usage: ${PN} [Options] <VM UUID>
+  -h       : show this help message
+  -l       : list all vms
+  -r       : list running vms
 EOF
-	if [ $# -gt 0 ] ; then
-		echo
-		echo "$@"
-		exit 1
-	else
-		exit
-	fi
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-vmstat="1"
-function check_vmstat() {
-	vmstat="${1}"
-	case "${vmstat}" in
-#	0) echo "vm is running" >&2 ;;
-	1) echo "vm status unknown" >&2 ;;
-	2) echo "vm not exists (${vmuuid})" >&2 ;;
-	3) echo "vm not running in this machine" >&2 ;;
+type getopt cat VBoxManage >/dev/null || exit $?
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o hlr -- "$@")" || usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	-l) listvms=1 ; shift ;;
+	-r) listrvms=1 ; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
 	esac
-	if [ "${vmstat}" -eq 3 ] ; then
-		VBoxManage startvm "${vmuuid}"
-	fi
-	exit "${vmstat}"
-}
+done
+
+if [ "${listvms}" == 1 ] ; then
+	VBoxManage list vms
+	exit $?
+fi
+
+if [ "${listrvms}" == 1 ] ; then
+	VBoxManage list runningvms
+	exit $?
+fi
+
+(($# < 1)) && usage "Invalid parameters"
 
 vmuuid="${1}" && shift
 [ -z "${vmuuid}" ] && usage "VM UUID not yet set"
 
 msg="$(VBoxManage list vms | grep "${vmuuid}")"
-[ -z "${msg}" ] && check_vmstat "2"
+[ -z "${msg}" ] && die "vm not exists (${vmuuid})"
 
 msg="$(VBoxManage list runningvms | grep "${vmuuid}")"
-[ -z "${msg}" ] && check_vmstat "3"
+if [ -z "${msg}" ] ; then
+	echo "vm not running in this machine ('${vmuuid}')" >&2
+	VBoxManage startvm "${vmuuid}"
+	exit $?
+fi
 
