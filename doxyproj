@@ -74,6 +74,7 @@ Doxyfile="$(doxygen -g - | \
 	sed -r "s/^(EXTRACT_STATIC\s*=).*$/\1 YES/" | \
 	sed -r "s/^(HTML_DYNAMIC_SECTIONS\s*=).*$/\1 YES/" | \
 	sed -r "s/^(SHOW_USED_FILES\s*=).*$/\1 NO/" | \
+	sed -r "s/^(VERBATIM_HEADERS\s*=).*$/\1 NO/" | \
 	cat
 )"
 
@@ -93,6 +94,8 @@ if ((F_EXTRACTALL == 1)) ; then
 	Doxyfile="$(echo "${Doxyfile}" | \
 	sed -r "s/^(EXTRACT_ALL\s*=).*$/\1 YES/" | \
 	sed -r "s/^(SHOW_USED_FILES\s*=).*$/\1 YES/" | \
+	sed -r "s/^(SOURCE_BROWSER\s*=).*$/\1 YES/" | \
+	sed -r "s/^(VERBATIM_HEADERS\s*=).*$/\1 YES/" | \
 	cat)"
 	if [ "${HAVE_DOT}" ] ; then
 		Doxyfile="$(echo "${Doxyfile}" | \
