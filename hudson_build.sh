@@ -13,6 +13,7 @@ Usage: ${PN} [Options] <Build Type> [Archive file1] [Archive file2]...
 Options:
   -h       : Show this help message
   -d <DIR> : Set working directory
+  -r       : Rebuild project
   --debug  : Build only debug mode (ignore release mode)
 
 Options for qtgenmake: (*: means the option can set more than once)
@@ -35,7 +36,7 @@ EOF
 type getopt cat sed qmake make 7z >/dev/null || exit $?
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd:Pi:D: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
+opt="$(getopt -o hd:rPi:D: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -43,6 +44,7 @@ while true ; do
 	case "${1}" in
 	-h) usage ; shift ;;
 	-d) proj_dir="$(readlink -f "${2}")" ; shift 2 ;;
+	-r) rebuild=1 ; shift ;;
 	-P) buildproj=1 ; shift ;;
 	-i) buildinc=("${buildinc[@]}" "${2}") ; shift 2 ;;
 	-D) builddef=("${builddef[@]}" "${2}") ; shift 2 ;;
@@ -74,6 +76,7 @@ while true ; do
 	qt4)
 		qmake -Wall || exit 1
 		make qmake || exit 1
+		[ "${rebuild}" == "1" ] && make clean
 		make debug || exit 1
 		if [ "${debug}" != "1" ] ; then
 			make release || exit 1
@@ -164,6 +167,7 @@ EOF
 				s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
 			" Makefile.Release
 		fi
+		[ "${rebuild}" == "1" ] && make clean
 		make debug || exit 1
 		if [ "${debug}" != "1" ] ; then
 			make release || exit 1
