@@ -19,15 +19,11 @@
 
 if ! type sqlite >/dev/null 2>&1 ; then
 
-if [ -z "${BASH_SOURCE}" ] ; then
-	echo "KDSQL.sh need to run in bash" >&2
-	exit 1
-fi
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
 
-dir="$(readlink -f "${BASH_SOURCE[0]}")"
-dir="$(dirname "${dir}")"
-source "${dir}/layout.sh" || exit 1
-unset dir
+source "${PD}/common" || exit 1
+source "${PD}/layout.sh" || exit 1
 
 true ${TMPDIR:=/tmp}
 true ${KDSQL_CMDTMP:=${TMPDIR}/KDSQL_CMDTMP_$$.tmp}
@@ -35,11 +31,9 @@ true ${KDSQL_RETRY_MAXTIMES:=-1}
 true ${KDSQL_RETRY_INTERVAL:=2}
 true ${KDSQL_SEP:=" <!> "}
 
+neccmd sqlite3
+
 _KD_sqlite="$(type -P sqlite3)"
-if [ -z "${_KD_sqlite}" ]  ; then
-	eerror "Can't find necessary program 'sqlite3'"
-	exit 1
-fi
 
 function sqlite() {
 	local retrymax="${KDSQL_RETRY_MAXTIMES}"
@@ -85,5 +79,6 @@ function sqlite() {
 }
 
 
-fi
+poparg
+fi # ! type sqlite
 

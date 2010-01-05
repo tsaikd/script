@@ -1,0 +1,73 @@
+#!/bin/bash
+# useful functions:
+#   die [msg1] [msg2] ...
+#   neccmd <cmd1> [cmd2] ...
+#   pusharg
+#   poparg
+
+if ! type die >/dev/null 2>&1 ; then
+
+# $* := error messages
+die() {
+	if [ "$@" ] ; then
+		if type eerror >/dev/null 2>&1 ; then
+			eerror "$@" >&2
+		else
+			echo "$@" >&2
+		fi
+	fi
+
+	exit 1
+}
+
+if [ -x /usr/lib/command-not-found ] ; then
+# $1 := command
+command_not_found_handle() {
+	# check because c-n-f could've been removed in the meantime
+	if [ -x /usr/lib/command-not-found ] ; then
+		/usr/bin/python /usr/lib/command-not-found -- $1
+		return $?
+	else
+		return 127
+	fi
+}
+fi
+
+# $* := check command
+neccmd() {
+	for i in "$@" ; do
+		if ! type "${i}" >/dev/null 2>&1 ; then
+			if type command_not_found_handle >/dev/null 2>&1 ; then
+				command_not_found_handle "${i}"
+			elif type eerror >/dev/null 2>&1 ; then
+				eerror "${i}: command not found" >&2
+			else
+				echo "${i}: command not found" >&2
+			fi
+			exit 127
+		fi
+	done
+}
+
+# push variable PD PN
+pusharg() {
+	if [ ${#BASH_SOURCE[@]} -gt 1 ] ; then
+		PN="${BASH_SOURCE[1]##*/}"
+		PD="${BASH_SOURCE[1]%/*}"
+	else
+		PN="${BASH_SOURCE[0]##*/}"
+		PD="${BASH_SOURCE[0]%/*}"
+	fi
+}
+
+# pop variable PD PN
+poparg() {
+	if [ ${#BASH_SOURCE[@]} -gt 2 ] ; then
+		PN="${BASH_SOURCE[2]##*/}"
+		PD="${BASH_SOURCE[2]%/*}"
+	fi
+}
+
+
+fi # ! type die
+
