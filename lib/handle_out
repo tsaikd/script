@@ -1,0 +1,36 @@
+#!/bin/bash
+#=====================================================================
+# rewrite function
+#---------------------------------------------------------------------
+# on_interrupt
+# on_exit
+#=====================================================================
+
+if ! type on_interrupt >/dev/null 2>&1 ; then
+
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/common" || exit 1
+source "${PD}/layout.sh" || exit 1
+
+# automatically call on_interrupt function when user send interrupt signal
+function on_interrupt() {
+	elastn && vecho
+	ewarn "$(date "+%Y/%m/%d %T"): Interupt by user"
+	exit 1
+}
+
+if ! type on_exit >/dev/null 2>&1 ; then
+# automatically call on_exit function when exit program
+function on_exit() {
+	return
+}
+fi
+
+trap "on_exit" EXIT KILL
+trap "on_interrupt" INT
+
+poparg
+fi # ! type on_interrupt
+
