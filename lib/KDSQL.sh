@@ -41,7 +41,7 @@ function sqlite() {
 	local retval
 
 	if [ -z "${KDSQL_DBPATH}" ] ; then
-		eerror 'Empty ${KDSQL_DBPATH}'
+		eerror 'Empty ${KDSQL_DBPATH}' >&2
 		return 1
 	fi
 
@@ -59,15 +59,15 @@ function sqlite() {
 		if [ -f "${KDSQL_CMDTMP}" ] ; then
 			if [ "$(grep "SQL error: database is locked" "${KDSQL_CMDTMP}")" ] ; then
 				if ((retry <= 1)) ; then
-					einfo "SQL error: database is locked"
+					einfo "SQL error: database is locked" >&2
 				elif ((retry == 2)) ; then
-					einfo "locked retry: ${retry}"
+					einfo "locked retry: ${retry}" >&2
 				else
 					tput cuu 1
-					einfo "locked retry: ${retry}"
+					einfo "locked retry: ${retry}" >&2
 				fi
 			else
-				error "$(cat "${KDSQL_CMDTMP}")"
+				eerror "$(cat "${KDSQL_CMDTMP}")" >&2
 				rm -f "${KDSQL_CMDTMP}"
 				return ${retval}
 			fi
