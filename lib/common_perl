@@ -1,0 +1,24 @@
+#!/bin/bash
+# useful functions:
+#   relpath
+#   relpath2
+
+if ! type relpath >/dev/null 2>&1 ; then
+
+if ! type perl >/dev/null ; then
+	exit 1
+fi
+
+relpath() {
+	perl -MFile::Spec -e 'for (@ARGV) { print File::Spec->abs2rel($_) . "\n"; }' "$@"
+}
+
+relpath2() {
+	local base="${1}"
+	shift
+	perl -MFile::Spec -e 'for (@ARGV) { print File::Spec->abs2rel($_, "'${base}'") . "\n"; }' "$@"
+}
+
+
+fi # ! type relpath
+
