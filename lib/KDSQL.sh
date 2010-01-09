@@ -7,6 +7,7 @@
 # usable function
 #---------------------------------------------------------------------
 # sqlite
+# sqlite_line
 #=====================================================================
 # global variable
 #---------------------------------------------------------------------
@@ -46,7 +47,7 @@ function sqlite() {
 	fi
 
 	while true ; do
-		${_KD_sqlite} -list -separator "${KDSQL_SEP}" "${KDSQL_DBPATH}" "$@" 2>"${KDSQL_CMDTMP}"
+		${_KD_sqlite} ${_KD_sqlite_opt:- -list -separator "${KDSQL_SEP}"} "${KDSQL_DBPATH}" "$@" 2>"${KDSQL_CMDTMP}"
 		retval=$?
 		if ((retval == 0)) ; then
 			rm -f "${KDSQL_CMDTMP}"
@@ -76,6 +77,11 @@ function sqlite() {
 
 		sleep "${KDSQL_RETRY_INTERVAL}"
 	done
+}
+
+function sqlite_line {
+	local _KD_sqlite_opt="-line"
+	sqlite "$@"
 }
 
 
