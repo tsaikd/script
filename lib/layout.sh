@@ -1,17 +1,24 @@
 #!/bin/bash
-
-# Global variables:
-#     C_N
-#     C_R
-#     C_G
-#     C_B
-#     C_H
-#     C_Y
+#=====================================================================
+# global variable
+#---------------------------------------------------------------------
+# C_N
+# C_R
+# C_G
+# C_B
+# C_H
+# C_Y
 #
-#     E_MSG_LV
-#     LAST_E_TYPE
+# E_MSG_LV
+# LAST_E_TYPE
+#=====================================================================
 
 if ! type set_quiet >/dev/null 2>&1 ; then
+
+PD="${BASH_SOURCE[0]%/*}"
+source "${PD}/common" || exit 1
+
+neccmd tput
 
 # $1 := Level number
 #    0 : eerror ewarn einfo einfon ebegin [eend] vecho vechon (default)
@@ -32,6 +39,9 @@ function set_quiet() {
 # use global variable to speed up for tput system program
 # and output without newline
 #_TPUT_CUU1=
+#_TPUT_CUD1=
+#_TPUT_CUB1=
+#_TPUT_CUF1=
 #_TPUT_EL=
 #_TPUT_LL=
 #_TPUT_KD_CLH= # cursor to head of line and clear line
@@ -41,24 +51,47 @@ function _tput() {
 	case "${1}" in
 	cols) ((${#COLUMNS})) && echo -ne "${COLUMNS}" && return $?
 		COLUMNS="$(tput cols)"
+		((${#COLUMNS})) || die "Not support tput cols"
 		echo -ne "${COLUMNS}"
 		;;
 	lines) ((${#LINES})) && echo -ne "${LINES}" && return $?
 		LINES="$(tput lines)"
+		((${#LINES})) || die "Not support tput lines"
 		echo -ne "${LINES}"
 		;;
 	cuu1) ((${#_TPUT_CUU1})) && echo -ne "${_TPUT_CUU1}" && return $?
 		_TPUT_CUU1="$(tput cuu1)"
 		((${#_TPUT_CUU1})) || _TPUT_CUU1="$(_tput cuu 1)"
+		((${#_TPUT_CUU1})) || _TPUT_CUU1="\e[1A"
 		echo -ne "${_TPUT_CUU1}"
+		;;
+	cud1) ((${#_TPUT_CUD1})) && echo -ne "${_TPUT_CUD1}" && return $?
+		_TPUT_CUD1="$(tput cud1)"
+		((${#_TPUT_CUD1})) || _TPUT_CUD1="$(_tput cud 1)"
+		((${#_TPUT_CUD1})) || _TPUT_CUD1="\e[1B"
+		echo -ne "${_TPUT_CUD1}"
+		;;
+	cub1) ((${#_TPUT_CUB1})) && echo -ne "${_TPUT_CUB1}" && return $?
+		_TPUT_CUB1="$(tput cub1)"
+		((${#_TPUT_CUB1})) || _TPUT_CUB1="$(_tput cub 1)"
+		((${#_TPUT_CUB1})) || _TPUT_CUB1="\e[1D"
+		echo -ne "${_TPUT_CUB1}"
+		;;
+	cuf1) ((${#_TPUT_CUF1})) && echo -ne "${_TPUT_CUF1}" && return $?
+		_TPUT_CUF1="$(tput cuf1)"
+		((${#_TPUT_CUF1})) || _TPUT_CUF1="$(_tput cuf 1)"
+		((${#_TPUT_CUF1})) || _TPUT_CUF1="\e[1C"
+		echo -ne "${_TPUT_CUF1}"
 		;;
 	el) ((${#_TPUT_EL})) && echo -ne "${_TPUT_EL}" && return $?
 		_TPUT_EL="$(tput el)"
+		((${#_TPUT_EL})) || die "Not support tput el"
 		echo -ne "${_TPUT_EL}"
 		;;
 	ll) ((${#_TPUT_LL})) && echo -ne "${_TPUT_LL}" && return $?
 		_TPUT_LL="$(tput ll)"
 		((${#_TPUT_LL})) || _TPUT_LL="$(_tput cup $(_tput lines) 0)"
+		((${#_TPUT_LL})) || die "Not support tput ll"
 		echo -ne "${_TPUT_LL}"
 		;;
 	kd_clh) ((${#_TPUT_KD_CLH})) && echo -ne "${_TPUT_KD_CLH}" && return $?
@@ -219,5 +252,7 @@ yes|true) unset_colors ;;
 no|false) set_colors ;;
 esac
 
+
+poparg
 fi
 
