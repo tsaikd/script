@@ -1,0 +1,239 @@
+#!/bin/bash
+
+if ! type kdread >/dev/null 2>&1 ; then
+
+PD="${BASH_SOURCE[0]%/*}"
+source "${PD}/layout.sh" || exit 1
+
+# Usage:
+#   kdread [-n][-t TIMEOUT] PROMPT DEFAULT_OPT OPT1 [OPT2 [OPT3 [...]]]
+# Options:
+#   -n         : do not enter a new line after reading
+#   -t TIMEOUT : set read timeout
+# Return the ith option that user choice by 'ENTER'
+# Example:
+#   kdread -nt 5 "Do you want to do so?" 2 "Yes" "No" "Yes to all" "No to all"
+#   retval=$?
+#   case $retval in
+#   1) ... ;; # "Yes"
+#   2) ... ;; # "No"
+#   3) ... ;; # "Yes to all"
+#   4) ... ;; # "No to all"
+#   esac
+function kdread() {
+	# use another function to handle signals
+	local save_trap="$(trap)"
+	trap "return 0" INT
+	_kdread "$@"
+	local retval="$?"
+	eval "${save_trap}"
+	[ "${retval}" -eq 0 ] && kill -s SIGINT $$
+	return ${retval}
+}
+
+# Retval 0: if get a interrupt signal from user
+function _kdread() {
+	local i
+	local readopt
+	local newline=1
+	local timeout=0
+
+	i="$(getopt -s bash "nt:" "$@")" || exit 1
+	eval set -- "${i}"
+	for i ; do
+		case ${i} in
+		--) shift && break ;;
+		-n) newline=0 && shift ;;
+		-t) timeout="${2}" && shift 2 ;;
+		esac
+	done
+
+	[ "${timeout}" -gt 0 ] && readopt="-t ${timeout}"
+
+	local retval=0
+	local prompt="${1}"
+	local defargc="${2}"
+	shift 2 ; ((retval |= $?))
+
+	if ((retval)) || [ "$#" -lt "${defargc}" ] ; then
+		eerror "Line ${BASH_LINENO} ${FUNCNAME}(): Invalid parameters"
+		exit 1
+	fi
+
+	local einfon="einfon"
+	local vecho="vecho"
+	local vechon="vechon"
+	if [ "${E_MSG_LV}" -gt 0 ] ; then
+		einfon="echo -n"
+		vecho="echo"
+		vechon="echo -n"
+	fi
+
+	local c
+	local ans
+	local ans2
+	local msg
+	local msgbuf
+	local msglen=0
+	local optmaxlen=0
+	local cols="$(tput cols)"
+	local esc="$(echo -e "\e")"
+	local eol="$(echo -e "\n")"
+
+	if [ "${C_N}" ] ; then
+		local C_SDEF=$'\e[32;44;01m'
+		local C_DEF=$'\e[32;01m'
+		local C_SOTH=$'\e[31;44;01m'
+		local C_OTH=$'\e[31;01m'
+	else
+		local C_SDEF=""
+		local C_DEF=""
+		local C_SOTH=""
+		local C_OTH=""
+	fi
+
+	local C_BUF=""
+	local C_CLR=""
+	local sc="${defargc}"
+
+	$einfon "${prompt}"
+
+	for i ; do
+		((msglen += ${#i}))
+		[ ${#i} -gt ${optmaxlen} ] && optmaxlen="${#i}"
+	done
+	((msglen += 3 + $# + optmaxlen))
+	if ((msglen >= cols)) ; then
+		eerror "Line ${BASH_LINENO} ${FUNCNAME}(): Options string too long (must be < ${cols})"
+		exit 1
+	fi
+	C_CLR="$(tput cub ${msglen})$(tput el)"
+	printf "%${msglen}s" ""
+
+	((i = 3 + msglen + ${#prompt}))
+	(( (i % cols) <= msglen )) && $vecho
+
+	while true ; do
+		c=1
+		for i ; do
+			if ((c == sc)) ; then
+				if ((c == defargc)) ; then
+					C_BUF="${C_SDEF}"
+				else
+					C_BUF="${C_SOTH}"
+				fi
+			else
+				if ((c == defargc)) ; then
+					C_BUF="${C_DEF}"
+				else
+					C_BUF="${C_OTH}"
+				fi
+			fi
+
+			if ((c == 1)) ; then
+				msg="[${C_BUF}${i}${C_N}"
+			else
+				msg="${msg}/${C_BUF}${i}${C_N}"
+			fi
+			((c++))
+		done
+		msg=" ${msg}] $(printf "${C_DEF}%-$((optmaxlen))s${C_N}" "$(eval echo "\"\$${sc}\"")")"
+		$vechon "${C_CLR}${msg}"
+
+		read ${readopt} -s -n 1 ans
+		if [ "${ans}" == "${esc}" ] ; then
+			read ${readopt} -s -n 2 ans
+			case "${ans}" in
+			[A) ans2=0 ; ((sc--)) ;;
+			[B) ans2=0 ; ((sc++)) ;;
+			[C) ans2=0 ; ((sc++)) ;;
+			[D) ans2=0 ; ((sc--)) ;;
+			[1|[2|[3|[4|[5|[6)
+				read -s -n 1 ans2
+				if [ "${ans2}" == "~" ] ; then
+					ans2=0 # Known Key
+					case "${ans}" in
+					[1) sc=1 ;; # Home
+					[2) ;; # Insert
+					[3) ;; # Delete
+					[4) sc=$# ;; # End
+					[5) ;; # PageUp
+					[6) ;; # PageDown
+					esac
+				else
+					ans="${ans}${ans2}"
+					ans2=1 # Unknown key
+				fi
+				;;
+			*)
+				ans2=1 ;;
+			esac
+
+			if [ "${ans2}" -eq 1 ] ; then
+				eerror "${FUNCNAME}(): Unknown function key"
+				eerror "  Please send this string \"${ans}\" and what key you entered to tsaikd <tsaikd@gmail.com> to fix this problem"
+			fi
+			readopt=""
+		elif [ "${ans}" == "${eol}" ] ; then
+			break
+		elif [ "${#ans}" -eq 0 ] ; then
+			break
+		fi
+
+		((sc < 1)) && sc=1
+		((sc > $#)) && sc=$#
+	done
+
+	((newline)) && $vecho
+	return ${sc}
+}
+
+# like read utility, but with default value (lowercase)
+# only support single word
+# Options:
+#   -t <TIMEOUT> : set read timeout
+# $1 := variable name
+# $2 := default value
+# $3- := other options
+function readdef() {
+	local __timeout="0"
+	local __i="$(getopt "t:" "$@")" || return 1
+	eval set -- "${__i}"
+	for __i do
+	    case "${__i}" in
+	    --) shift && break ;;
+		-t) __timeout="${2}" && shift 2 ;;
+		esac
+	done
+
+	if [ "$#" -lt 2 ] ; then
+		eerror "line ${BASH_LINENO}: ${FUNCNAME} invalid parameters"
+		return 1
+	fi
+
+	local __var="${1}"
+	local __default="${2}"
+	shift 2
+
+	echo "${__default}" | awk '{printf "[%s", toupper($0)}'
+	for __i ; do
+		printf "/%s" "${__i}"
+	done
+	printf "] "
+
+	local __opts="-n 1 -s"
+	if [ "${__timeout}" -gt 0 ] ; then
+		__opts=" -t ${__timeout}"
+	fi
+
+	read ${__opts} "${__var}" || eval "${__var}=\"${__default}\""
+	__i="$(echo " ${__default} $@ " | grep -o "$(eval echo "\$${__var}")")"
+	[ -z "${__i}" ] && eval "${__var}=\"${__default}\""
+
+	eval echo "\$${__var}"
+}
+
+
+poparg
+fi # ! type kdread
+
