@@ -20,10 +20,7 @@
 
 if ! type sqlite >/dev/null 2>&1 ; then
 
-PN="${BASH_SOURCE[0]##*/}"
 PD="${BASH_SOURCE[0]%/*}"
-
-source "${PD}/common" || exit 1
 source "${PD}/layout.sh" || exit 1
 
 true ${TMPDIR:=/tmp}
