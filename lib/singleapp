@@ -1,0 +1,43 @@
+#!/bin/bash
+# useful variables:
+#	SINGLEAPP_LOCK_FILE
+# useful functions:
+#   single_app_on_exit
+
+if ! type check_single_app >/dev/null 2>&1 ; then
+
+PD="${BASH_SOURCE[0]%/*}"
+source "${PD}/die" || exit 1
+source "${PD}/common" || exit 1
+source "${PD}/layout.sh" || exit 1
+source "${PD}/handle_out" || exit 1
+
+export SINGLEAPP_LOCK_FILE=""
+
+check_single_app() {
+	local c="${#BASH_SOURCE[@]}"
+	local i="$((c-1))"
+	local pn="${BASH_SOURCE[${i}]##*/}"
+	local lock_file="/tmp/_singleapp_lock_file_${pn}"
+	SINGLEAPP_LOCK_FILE="${lock_file}"
+
+	if [ -e "${lock_file}" ] ; then
+		die "Another app executed, pid: '$(cat "${lock_file}")', from: '${lock_file}'" >&2
+	else
+		echo "$$" > "${lock_file}"
+	fi
+}
+check_single_app
+
+single_app_on_exit() {
+	rm -f "${SINGLEAPP_LOCK_FILE}"
+}
+
+on_exit() {
+	single_app_on_exit
+}
+
+
+poparg
+fi # ! type check_single_app
+
