@@ -1,7 +1,13 @@
 #!/bin/sh
 
 die() {
-	[ "$@" ] && echo "$@" >&2
+	if [ "$@" ] ; then
+		if type eerror >/dev/null 2>&1 ; then
+			eerror "$@" >&2
+		else
+			echo "$@" >&2
+		fi
+	fi
 	exit 1
 }
 
