@@ -247,7 +247,12 @@ true "${E_MSG_LV:=0}"
 true "${TERM:=screen}"
 export TERM
 
-case "${NOCOLOR:-false}" in
+if [ "${TERM}" == "screen" ] || [ "${TERM}" == "xterm" ] ; then
+	true ${NOCOLOR:=no}
+else
+	true ${NOCOLOR:=yes}
+fi
+case "${NOCOLOR}" in
 yes|true) unset_colors ;;
 no|false) set_colors ;;
 esac
