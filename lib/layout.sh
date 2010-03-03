@@ -59,11 +59,13 @@ function _tput() {
 		((${#LINES})) || die "Not support tput lines"
 		echo -ne "${LINES}"
 		;;
-	cuu1) ((${#_TPUT_CUU1})) && echo -ne "${_TPUT_CUU1}" && return $?
+	cuu1) [ "${_TPUT_CUU1}" == "DISABLE" ] && return 1
+		((${#_TPUT_CUU1})) && echo -ne "${_TPUT_CUU1}" && return $?
 		_TPUT_CUU1="$(tput cuu1)"
 		((${#_TPUT_CUU1})) || _TPUT_CUU1="$(_tput cuu 1)"
-		((${#_TPUT_CUU1})) || _TPUT_CUU1="\e[1A"
+		((${#_TPUT_CUU1})) || ( ( [ "${TERM}" == "screen" ] || [ "${TERM}" == "xterm" ] ) && _TPUT_CUU1="\e[1A" )
 		echo -ne "${_TPUT_CUU1}"
+		((${#_TPUT_CUU1})) || _TPUT_CUU1="DISABLE"
 		;;
 	cud1) ((${#_TPUT_CUD1})) && echo -ne "${_TPUT_CUD1}" && return $?
 		_TPUT_CUD1="$(tput cud1)"
@@ -83,9 +85,10 @@ function _tput() {
 		((${#_TPUT_CUF1})) || _TPUT_CUF1="\e[1C"
 		echo -ne "${_TPUT_CUF1}"
 		;;
-	el) ((${#_TPUT_EL})) && echo -ne "${_TPUT_EL}" && return $?
+	el) [ "${_TPUT_EL}" == "DISABLE" ] && return 1
+		((${#_TPUT_EL})) && echo -ne "${_TPUT_EL}" && return $?
 		_TPUT_EL="$(tput el)"
-		((${#_TPUT_EL})) || die "Not support tput el"
+		((${#_TPUT_EL})) || ( _TPUT_EL="DISABLE" ; die "Not support tput el" )
 		echo -ne "${_TPUT_EL}"
 		;;
 	ll) ((${#_TPUT_LL})) && echo -ne "${_TPUT_LL}" && return $?
@@ -109,6 +112,7 @@ function _tput() {
 	*) tput $@ ;;
 	esac
 }
+_tput kd_clh >/dev/null 2>&1
 
 function set_colors() {
 	C_N=$'\e[0m'
