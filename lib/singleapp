@@ -7,7 +7,6 @@
 if ! type check_single_app >/dev/null 2>&1 ; then
 
 PD="${BASH_SOURCE[0]%/*}"
-source "${PD}/die" || exit 1
 source "${PD}/common" || exit 1
 source "${PD}/layout.sh" || exit 1
 source "${PD}/handle_out" || exit 1
@@ -19,12 +18,19 @@ check_single_app() {
 	local i="$((c-1))"
 	local pn="${BASH_SOURCE[${i}]##*/}"
 	local lock_file="/tmp/_singleapp_lock_file_${pn}"
+	local pid
 	SINGLEAPP_LOCK_FILE="${lock_file}"
 
 	if [ -e "${lock_file}" ] ; then
-		die "Another app executed, pid: '$(cat "${lock_file}")', from: '${lock_file}'" >&2
+		pid="$(cat "${lock_file}")"
+		if [ "${pid}" ] && [ -d "/proc/${pid}/" ] ; then
+			die "Another app executed, pid: '${pid}', from: '${lock_file}'"
+		else
+			ewarn "lock file exists, but no process found, ${pid}: ${lock_file}"
+			pushd /proc/self >/dev/null ; cut -d' ' -f1 stat > "${lock_file}" ; popd >/dev/null
+		fi
 	else
-		echo "$$" > "${lock_file}"
+		pushd /proc/self >/dev/null ; cut -d' ' -f1 stat > "${lock_file}" ; popd >/dev/null
 	fi
 }
 check_single_app
