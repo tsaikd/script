@@ -3,7 +3,9 @@
 PN="${BASH_SOURCE[0]##*/}"
 PD="${BASH_SOURCE[0]%/*}"
 
-source "${PD}/lib/die"
+source "${PD}/lib/common" || exit $?
+
+neccmd getopt cat grep sed less doxygen
 
 function usage() {
 	cat <<EOF
@@ -17,8 +19,6 @@ Options:
 EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
-
-type getopt cat grep sed less doxygen >/dev/null || exit $?
 
 opt="$(getopt -o hp:aC:D -- "$@")" || usage "Parse options failed"
 
