@@ -3,7 +3,7 @@
 PN="${BASH_SOURCE[0]##*/}"
 PD="${BASH_SOURCE[0]%/*}"
 
-source "${PD}/lib/die"
+source "${PD}/lib/common"
 
 function usage() {
 	cat <<EOF
@@ -12,6 +12,7 @@ Options:
   -h       : show this help message
   -D <DIR> : set output dir
   -f       : compress in fast mode (effect in t7z mode)
+  -t       : add time suffix (Ex: OUTPUT-19991231.7z)
 
 Default input path: "."
 Default output dir: dirname of input path
@@ -20,11 +21,11 @@ EOF
 }
 
 case "${PN}" in
-t7z) type 7z >/dev/null || exit $? ;;
-*) type tar >/dev/null || exit $? ;;
+t7z) neccmd 7z ;;
+*) neccmd tar ;;
 esac
 
-opt="$(getopt -o hD:f -- "$@")" || usage "Parse options failed"
+opt="$(getopt -o hD:ft -- "$@")" || usage "Parse options failed"
 
 eval set -- "${opt}"
 while true ; do
@@ -32,6 +33,7 @@ while true ; do
 	-h) usage ;;
 	-D) tdir="${2%%/}" ; shift 2 ;;
 	-f) fastmode=1 ; shift ;;
+	-t) timesuffix=1 ; shift ;;
 	--) shift ; break ;;
 	*) die "Internal error!" ;;
 	esac
@@ -42,11 +44,16 @@ src="$(readlink -f "${1:-.}")"
 
 d="${src%/*}"
 src="${src##*/}"
+tar="${src}"
+
+if [ "${timesuffix}" == "1" ] ; then
+	tar="${tar}-$(date "+%Y%m%d")"
+fi
 
 if [ "${PN}" == "t7z" ] ; then
-	tar="${src}.7z"
+	tar="${tar}.7z"
 else
-	tar="${src}.tbz"
+	tar="${tar}.tbz"
 fi
 
 if [ "${tdir}" ] ; then
@@ -58,6 +65,7 @@ fi
 pushd "${d}" &>/dev/null
 
 [ -e "${src}" ] || die "'${src}' not found"
+[ -e "${tar}" ] && die "Target file '${tar}' exists"
 
 echo "${PWD}"
 if [ "${PN}" == "t7z" ] ; then
