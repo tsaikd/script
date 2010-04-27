@@ -41,6 +41,7 @@ done
 
 src="$(readlink -f "${1:-.}")"
 [ "${src}" == "/" ] && die "Input path cannot be '/'"
+shift
 
 d="${src%/*}"
 src="${src##*/}"
@@ -70,12 +71,12 @@ pushd "${d}" &>/dev/null
 echo "${PWD}"
 if [ "${PN}" == "t7z" ] ; then
 	if [ "${fastmode}" == 1 ] ; then
-		7z a -m0=lzma -mx=3 -mfb=273 -md=32m "${tar}" "${src}"
+		7z a -m0=lzma -mx=3 -mfb=273 -md=32m "${tar}" "${src}" "$@"
 	else
-		7z a -m0=lzma -mx=9 -mfb=273 -md=32m "${tar}" "${src}"
+		7z a -m0=lzma -mx=9 -mfb=273 -md=32m "${tar}" "${src}" "$@"
 	fi
 else
-	tar cjvpf "${tar}" "${src}"
+	tar cjvpf "${tar}" "${src}" "$@"
 fi
 echo
 echo "output: ${tar}"
