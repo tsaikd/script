@@ -4,7 +4,7 @@ PN="${BASH_SOURCE[0]##*/}"
 PD="${BASH_SOURCE[0]%/*}"
 
 source "${PD}/lib/env_ccache"
-source "${PD}/lib/die"
+source "${PD}/lib/common"
 
 function usage() {
 	cat <<EOF
@@ -24,6 +24,7 @@ Options for qtgenmake: (*: means the option can set more than once)
                 : Set compiler prefix, useful for cross compile
   --static      : Build with static link
   --lib         : Build project as library
+  --lib32       : Link Library Path /usr/lib32 instead of /usr/lib
   --pch <FILE>  : Set pre-compile header for project
 
 Build Type:
@@ -33,10 +34,10 @@ EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-type getopt cat sed qmake make 7z >/dev/null || exit $?
+neccmd getopt cat sed qmake make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd:rPi:D: -l compiler-prefix: -l static -l debug -l lib -l pch: -- "$@")"
+opt="$(getopt -o hd:rPi:D: -l compiler-prefix: -l static -l debug -l lib -l lib32 -l pch: -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -52,6 +53,7 @@ while true ; do
 	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
 	--static) buildstatic=1 ; linkopt="${linkopt} -static" ; shift ;;
 	--lib) buildlib=1 ; shift ;;
+	--lib32) buildlib32=1 ; shift ;;
 	--pch) buildpch="${2}" ; shift 2 ;;
 	--) shift ; break ;;
 	*) echo "Internal error!" ; exit 1 ;;
@@ -165,6 +167,15 @@ EOF
 				s|^(CXX\s*=\s)(.*)$|\1${comprefix}\2|;
 				s|^(LINK\s*=\s)(.*)$|\1${comprefix}\2|;
 				s|^(AR\s*=\s)(.*)$|\1${comprefix}\2|;
+			" Makefile.Release
+		fi
+		if [ "${buildlib32}" == "1" ] ; then
+			[ ! -d "/usr/lib32" ] && die "Force link lib32 but not exists /usr/lib32"
+			sed -i -r "
+				s|/usr/lib|/usr/lib32|;
+			" Makefile.Debug
+			sed -i -r "
+				s|/usr/lib|/usr/lib32|;
 			" Makefile.Release
 		fi
 		[ "${rebuild}" == "1" ] && make clean
