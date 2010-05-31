@@ -3,7 +3,9 @@
 PN="${BASH_SOURCE[0]##*/}"
 PD="${BASH_SOURCE[0]%/*}"
 
-source "${PD}/lib/die"
+source "${PD}/lib/common"
+
+neccmd getopt cat grep chmod git >/dev/null || exit $?
 
 function usage() {
 	cat <<EOF
@@ -19,9 +21,22 @@ EOF
 function addCmdToFile() {
 	local cmd="${1}"
 	local f="${2}"
-	if [ ! -f "${f}" ] || [ -z "$(grep "^${cmd}" "${f}")" ]; then
+	if [ ! -f "${f}" ] || [ -z "$(grep "^${cmd}$" "${f}")" ]; then
 		echo "${cmd}" >> "${f}"
 		echo "add '${cmd}' to '${PWD}/${f}'"
+	fi
+	chmod +x "${f}"
+}
+
+# $1: command
+# $2: filepath
+function chkTailFile() {
+	local cmd="${1}"
+	local f="${2}"
+	local chktail="$(sed '/^\s*$/ d' "${f}" | tail -n 1)"
+	if [ ! -f "${f}" ] || [ "${chktail}" != "${cmd}" ]; then
+		echo "${cmd}" >> "${f}"
+		echo "add '${cmd}' to tail of '${PWD}/${f}'"
 	fi
 	chmod +x "${f}"
 }
@@ -37,11 +52,10 @@ function sethook() {
 
 	pushd "${hookdir}" &>/dev/null
 	addCmdToFile "exec git update-server-info" "post-commit"
-	addCmdToFile "exec git update-server-info" "post-receive"
+	addCmdToFile "exec git update-server-info" "post-update"
+#	chkTailFile "exit 0" "post-update"
 	popd &>/dev/null
 }
-
-type getopt cat grep chmod git >/dev/null || exit $?
 
 (($# == 0)) && usage "Invalid parameters"
 opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
