@@ -51,7 +51,9 @@ function sethook() {
 	local hookdir="${gitdir}/hooks"
 
 	pushd "${hookdir}" &>/dev/null
-	addCmdToFile "exec git update-server-info" "post-commit"
+	if [ "$(git config --get core.bare)" != "true" ] ; then
+		addCmdToFile "exec git update-server-info" "post-commit"
+	fi
 	addCmdToFile "exec git update-server-info" "post-update"
 #	chkTailFile "exit 0" "post-update"
 	popd &>/dev/null
