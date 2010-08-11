@@ -34,7 +34,7 @@ EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-neccmd getopt cat sed qmake make 7z
+neccmd getopt cat sed qmake make g++ 7z
 
 (($# == 0)) && usage "Invalid parameters"
 opt="$(getopt -o hd:rPi:D: -l compiler-prefix: -l static -l debug -l lib -l lib32 -l pch: -- "$@")"
