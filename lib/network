@@ -1,0 +1,27 @@
+#!/bin/bash
+# useful functions:
+#   net_extif
+
+if ! type getextif >/dev/null 2>&1 ; then
+
+net_extif() {
+	route -n | perl -ane 's/^0\.0\.0\.0.+\s+(\S+)$/print $1/e'
+}
+
+net_defgw() {
+	route -n | perl -ane 's/^0\.0\.0\.0\s+(\S+)/print $1/e'
+}
+
+# $1 := interface name, ex: eth0
+net_ifrecv() {
+	ifconfig ${1} | perl -ane 's/RX bytes:(\d+)/print $1/e'
+}
+
+# $1 := interface name, ex: eth0
+net_iftran() {
+	ifconfig ${1} | perl -ane 's/TX bytes:(\d+)/print $1/e'
+}
+
+
+fi # ! type getextif
+
