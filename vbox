@@ -14,7 +14,7 @@ Options:
   -h       : show this help message
 
 Action:
-  createrawvmdk [-f PATH] <Device>
+  n|createrawvmdk [-f PATH] <Device>
     -f     : Output vmdk path, default: <Device Name>
     Device : Device path
 EOF
@@ -66,7 +66,8 @@ function act_createrawvmdk() {
 }
 
 case "${act}" in
-createrawvmdk)
+n|createrawvmdk)
+	[ "${act}" == "n" ] && act="createrawvmdk"
 	[ "$#" -lt 1 ] && usage "Invalid parameters in action ${act}"
 	act_createrawvmdk "${1}"
 	;;
