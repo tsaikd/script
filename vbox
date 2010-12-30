@@ -1,0 +1,75 @@
+#!/bin/bash
+
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/common" || exit 1
+source "${PD}/lib/layout.sh" || exit 1
+source "${PD}/lib/kdread" || exit 1
+
+function usage() {
+	cat <<EOF
+Usage: ${PN} [Options] <Action>
+Options:
+  -h       : show this help message
+
+Action:
+  createrawvmdk [-f PATH] <Device>
+    -f     : Output vmdk path, default: <Device Name>
+    Device : Device path
+EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+neccmd vboxmanage
+
+opt="$(getopt -o hf: -- "$@")" || usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ;;
+	-f) fopt="${2}" ; shift 2 ;;
+	--) shift ; break ;;
+	*) die "Internal error!" ;;
+	esac
+done
+
+[ "$#" -lt 1 ] && usage "Invalid parameters"
+
+act="${1}"
+shift
+
+function act_createrawvmdk() {
+	local dev="${1}"
+	local fpath="${fopt}"
+	local retval
+	dev="$(readlink -f "${dev}")"
+
+	[ ! -e "${dev}" ] && die "Device not exists ('${dev}')"
+
+	if [ -z "${fpath}" ] ; then
+		fpath="${PWD}/${dev##*/}.vmdk"
+	fi
+
+	if [ -e "${fpath}" ] ; then
+		einfo "Output file exists ('${fpath}')"
+		kdread "Do you want to overwrite ?" 1 "Yes" "No"
+		retval=$?
+		case "${retval}" in
+		1) rm -f "${fpath}" ;;
+		2) return ;;
+		esac
+	fi
+
+	vboxmanage internalcommands createrawvmdk -filename "${fpath}" -rawdisk "${dev}"
+}
+
+case "${act}" in
+createrawvmdk)
+	[ "$#" -lt 1 ] && usage "Invalid parameters in action ${act}"
+	act_createrawvmdk "${1}"
+	;;
+*) usage "Invalid Action ('${act}')" ;;
+esac
+
