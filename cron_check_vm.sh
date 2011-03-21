@@ -44,16 +44,15 @@ fi
 
 (($# < 1)) && usage "Invalid parameters"
 
-vmuuid="${1}" && shift
-[ -z "${vmuuid}" ] && usage "VM UUID not yet set"
+for vmuuid in "$@" ; do
+	msg="$(VBoxManage list vms | grep "${vmuuid}")"
+	[ -z "${msg}" ] && die "vm not exists (${vmuuid})"
 
-msg="$(VBoxManage list vms | grep "${vmuuid}")"
-[ -z "${msg}" ] && die "vm not exists (${vmuuid})"
-
-msg="$(VBoxManage list runningvms | grep "${vmuuid}")"
-if [ -z "${msg}" ] ; then
-	echo "vm not running in this machine ('${vmuuid}')" >&2
-	VBoxManage startvm "${vmuuid}"
-	exit $?
-fi
+	msg="$(VBoxManage list runningvms | grep "${vmuuid}")"
+	if [ -z "${msg}" ] ; then
+		echo "vm not running in this machine ('${vmuuid}')" >&2
+		VBoxManage startvm "${vmuuid}"
+		sleep 5
+	fi
+done
 
