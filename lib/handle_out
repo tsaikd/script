@@ -1,9 +1,14 @@
 #!/bin/bash
 #=====================================================================
+# useful function
+#---------------------------------------------------------------------
+#   insert_interrupt
+#   insert_exit
+#=====================================================================
 # rewrite function
 #---------------------------------------------------------------------
-# on_interrupt
-# on_exit
+#   on_interrupt
+#   on_exit
 #=====================================================================
 
 if ! type on_interrupt >/dev/null 2>&1 ; then
@@ -11,16 +16,43 @@ if ! type on_interrupt >/dev/null 2>&1 ; then
 PD="${BASH_SOURCE[0]%/*}"
 source "${PD}/layout.sh" || exit 1
 
+export handle_out_on_int_i=250
+declare -a handle_out_on_int
+export handle_out_on_exit_i=250
+declare -a handle_out_on_exit
+
+function insert_interrupt() {
+	local i
+	for i in "$@" ; do
+		handle_out_on_int[$((handle_out_on_int_i--))]="${i}"
+	done
+}
+
+function insert_exit() {
+	local i
+	for i in "$@" ; do
+		handle_out_on_exit[$((handle_out_on_exit_i--))]="${i}"
+	done
+}
+
 # automatically call on_interrupt function when user send interrupt signal
 function on_interrupt() {
+	local i
 	elastn && vecho
 	ewarn "$(date "+%Y/%m/%d %T"): Interupt by user"
+	for i in "${handle_out_on_int[@]}" ; do
+		${i}
+	done
 	exit 1
 }
 
 if ! type on_exit >/dev/null 2>&1 ; then
 # automatically call on_exit function when exit program
 function on_exit() {
+	local i
+	for i in "${handle_out_on_exit[@]}" ; do
+		${i}
+	done
 	return
 }
 fi
