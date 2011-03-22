@@ -35,7 +35,7 @@ done
 [ -z "${HOME}" ] && die "env 'HOME' not yet set"
 
 if [ -z "${USER}" ] ; then
-	type whoami && export USER="$(whoami)"
+	type whoami &>/dev/null && export USER="$(whoami)"
 fi
 
 vncport="${1}" && shift
