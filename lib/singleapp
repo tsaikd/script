@@ -1,6 +1,8 @@
 #!/bin/bash
 # useful variables:
 #	SINGLEAPP_LOCK_FILE
+#	SINGLEAPP_USER_PREFIX
+#	SINGLEAPP_USER_SUFFIX
 # useful functions:
 #   single_app_on_exit
 
@@ -11,15 +13,14 @@ source "${PD}/common" || exit 1
 source "${PD}/layout.sh" || exit 1
 source "${PD}/handle_out" || exit 1
 
-export SINGLEAPP_LOCK_FILE=""
-
 check_single_app() {
 	local c="${#BASH_SOURCE[@]}"
 	local i="$((c-1))"
 	local pn="${BASH_SOURCE[${i}]##*/}"
-	local lock_file="/tmp/_singleapp_lock_file_${pn}"
+	local prefix="/tmp/_singleapp_lock_file_${SINGLEAPP_USER_PREFIX}"
+	local suffix="${SINGLEAPP_USER_SUFFIX}"
+	local lock_file="${SINGLEAPP_LOCK_FILE:=${prefix}${pn}${suffix}}"
 	local pid
-	SINGLEAPP_LOCK_FILE="${lock_file}"
 
 	if [ -e "${lock_file}" ] ; then
 		pid="$(cat "${lock_file}")"
@@ -38,10 +39,7 @@ check_single_app
 single_app_on_exit() {
 	rm -f "${SINGLEAPP_LOCK_FILE}"
 }
-
-on_exit() {
-	single_app_on_exit
-}
+insert_exit single_app_on_exit
 
 
 poparg
