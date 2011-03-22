@@ -73,6 +73,11 @@ poparg() {
 	fi
 }
 
+# check basic environment variable
+if [ -z "${USER}" ] ; then
+	type whoami &>/dev/null && export USER="$(whoami)"
+fi
+
 
 fi # ! type die
 
