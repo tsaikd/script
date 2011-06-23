@@ -1,2 +1,3 @@
 /cron_check_vm.conf
 /hudson_trigger.conf
+/hudson_tomcat.conf
