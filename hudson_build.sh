@@ -16,6 +16,10 @@ Options:
   -r       : Rebuild project
   --debug  : Build only debug mode (ignore release mode)
 
+Options for ant: (*: means the option can set more than once)
+  -f <FILE>     : Ant build XML file
+  -t <TAGRET>  *: Build target
+
 Options for qtgenmake: (*: means the option can set more than once)
   -P            : Only generate .pro file
   -i <FILE>    *: Include other .pri in project file
@@ -28,16 +32,17 @@ Options for qtgenmake: (*: means the option can set more than once)
   --pch <FILE>  : Set pre-compile header for project
 
 Build Type:
+  ant       : Apache Ant
   qt4       : Qt Version 4
   qtgenmake : Qt generate project file automatically
 EOF
 	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
 }
 
-neccmd getopt cat sed qmake make g++ 7z
+neccmd getopt cat sed make 7z
 
 (($# == 0)) && usage "Invalid parameters"
-opt="$(getopt -o hd:rPi:D: -l compiler-prefix: -l static -l debug -l lib -l lib32 -l pch: -- "$@")"
+opt="$(getopt -o hd:rPi:D:t:f: -l compiler-prefix: -l static -l debug -l lib -l lib32 -l pch: -- "$@")"
 (($? != 0)) && usage "Parse options failed"
 
 eval set -- "${opt}"
@@ -49,6 +54,8 @@ while true ; do
 	-P) buildproj=1 ; shift ;;
 	-i) buildinc=("${buildinc[@]}" "${2}") ; shift 2 ;;
 	-D) builddef=("${builddef[@]}" "${2}") ; shift 2 ;;
+	-f) ant_xml="${2}" ; shift 2 ;;
+	-t) ant_target=("${ant_target[@]}" "${2}") ; shift 2 ;;
 	--debug) debug=1 ; shift ;;
 	--compiler-prefix) comprefix="${2}" ; shift 2 ;;
 	--static) buildstatic=1 ; linkopt="${linkopt} -static" ; shift ;;
@@ -75,7 +82,20 @@ proj_tar="${JOB_NAME}-${BUILD_NUMBER}"
 pushd "${proj_dir}" &>/dev/null || exit 1
 while true ; do
 	case "${build_type}" in
+	ant)
+		neccmd ant
+		cp -f "${PD}/conf/hudson_tomcat.xml" ./
+		if [ -f "${PD}/conf/hudson_tomcat.conf" ] ; then
+			source "${PD}/conf/hudson_tomcat.conf"
+		fi
+		true ${ant_xml:=build.xml}
+		if [ -z "$(grep -i "<import file=\"hudson_tomcat.xml\"/>" "${ant_xml}")" ] ; then
+			sed -i 's|</project>|\n\t<import file="hudson_tomcat.xml"/>\n</project>|i' "${ant_xml}"
+		fi
+		ant -f "${ant_xml}" ${ant_target[@]}
+		;;
 	qt4)
+		neccmd qmake g++
 		qmake -Wall || exit 1
 		make qmake || exit 1
 		[ "${rebuild}" == "1" ] && make clean
@@ -85,6 +105,7 @@ while true ; do
 		fi
 		;;
 	qtgenmake)
+		neccmd qmake g++
 		qmake -project || exit 1
 		proj_file="${PWD##*/}.pro"
 		[ ! -f "${proj_file}" ] && \

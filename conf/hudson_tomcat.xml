@@ -1,0 +1,106 @@
+<?eclipse.ant.import?>
+<project>
+	<buildnumber/>
+	<property environment="env"/>
+
+	<condition property="mgr.url" value="${env.DEPLOY_URL}" else="http://localhost:8080/manager/text">
+		<isset property="env.DEPLOY_URL"/>
+	</condition>
+	<condition property="mgr.username" value="${env.DEPLOY_USER}" else="TOMCAT_DEPLOY_USER">
+		<isset property="env.DEPLOY_USER"/>
+	</condition>
+	<condition property="mgr.password" value="${env.DEPLOY_PASSWORD}" else="TOMCAT_DEPLOY_PASSWORD">
+		<isset property="env.DEPLOY_PASSWORD"/>
+	</condition>
+	<condition property="mgr.deploypath" value="${env.DEPLOY_PATH}" else="/${ant.project.name}">
+		<isset property="env.DEPLOY_PATH"/>
+	</condition>
+	<condition property="mgr.warfile" value="${env.DEPLOY_WARFILE}" else="${basedir}/build/${ant.project.name}-${build.number}.war">
+		<isset property="env.DEPLOY_WARFILE"/>
+	</condition>
+	<condition property="mgr.buildtarget" value="${env.DEPLOY_BUILDTARGET}" else="build">
+		<isset property="env.DEPLOY_BUILDTARGET"/>
+	</condition>
+	<condition property="mgr.wartarget" value="${env.DEPLOY_WARTARGET}" else="war">
+		<isset property="env.DEPLOY_WARTARGET"/>
+	</condition>
+	<condition property="mgr.update" value="${env.DEPLOY_UPDATE}" else="true">
+		<isset property="env.DEPLOY_UPDATE"/>
+	</condition>
+
+	<condition property="mgr.war.default">
+		<not>
+			<isset property="env.DEPLOY_WARTARGET"/>
+		</not>
+	</condition>
+
+	<target name="war" if="mgr.war.default">
+		<antcall target="${mgr.buildtarget}"/>
+		<war destfile="${mgr.warfile}" basedir="${basedir}/WebContent" webxml="${basedir}/WebContent/WEB-INF/web.xml"/>
+	</target>
+
+	<taskdef name="deploy"    classname="org.apache.catalina.ant.DeployTask"/>
+	<taskdef name="undeploy"  classname="org.apache.catalina.ant.UndeployTask"/>
+	<taskdef name="start"     classname="org.apache.catalina.ant.StartTask"/>
+	<taskdef name="stop"      classname="org.apache.catalina.ant.StopTask"/>
+	<taskdef name="reload"    classname="org.apache.catalina.ant.ReloadTask"/>
+	<taskdef name="list"      classname="org.apache.catalina.ant.ListTask"/>
+
+	<target name="context.status">
+        <property name="running" value="${mgr.deploypath}:running"/>
+        <property name="stopped" value="${mgr.deploypath}:stopped"/>
+    
+        <list url="${mgr.url}" outputproperty="ctx.status" username="${mgr.username}" password="${mgr.password}"/>
+        
+        <condition property="context.running">
+            <contains string="${ctx.status}" substring="${running}"/>
+        </condition>
+        <condition property="context.stopped">
+            <contains string="${ctx.status}" substring="${stopped}"/>
+        </condition>
+        <condition property="context.notInstalled">
+            <and>
+                <isfalse value="${context.running}"/>
+                <isfalse value="${context.stopped}"/>
+            </and>
+        </condition>
+        <condition property="context.deployable">
+            <or>
+                <istrue value="${context.notInstalled}"/>
+                <and>
+                    <istrue value="${context.running}"/>
+                    <istrue value="${mgr.update}"/>
+                </and>
+                <and>
+                    <istrue value="${context.stopped}"/>
+                    <istrue value="${mgr.update}"/>
+                </and>
+            </or>
+        </condition>
+        <condition property="context.undeployable">
+            <or>
+                <istrue value="${context.running}"/>
+                <istrue value="${context.stopped}"/>
+            </or>
+        </condition>
+    </target>
+	<target name="deploy" depends="context.status" if="context.deployable">
+		<antcall target="${mgr.wartarget}"/>
+		<deploy url="${mgr.url}" username="${mgr.username}" password="${mgr.password}" path="${mgr.deploypath}" war="${mgr.warfile}" update="${mgr.update}"/>
+	</target>
+	<target name="undeploy" depends="context.status" if="context.undeployable">
+		<undeploy url="${mgr.url}" username="${mgr.username}" password="${mgr.password}" path="${mgr.deploypath}"/>
+	</target>
+	<target name="start" depends="context.status" if="context.stopped">
+		<start url="${mgr.url}" username="${mgr.username}" password="${mgr.password}" path="${mgr.deploypath}"/>
+	</target>
+	<target name="stop" depends="context.status" if="context.running">
+		<stop url="${mgr.url}" username="${mgr.username}" password="${mgr.password}" path="${mgr.deploypath}"/>
+	</target>
+	<target name="reload" depends="context.status" if="context.running">
+		<reload url="${mgr.url}" username="${mgr.username}" password="${mgr.password}" path="${mgr.deploypath}"/>
+	</target>
+	<target name="list">
+		<list url="${mgr.url}" username="${mgr.username}" password="${mgr.password}"/>
+	</target>
+</project>
