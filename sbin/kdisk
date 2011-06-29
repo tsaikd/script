@@ -1,0 +1,69 @@
+#!/bin/bash
+
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/../lib/common" || exit 1
+source "${PD}/../lib/layout.sh" || exit 1
+source "${PD}/../lib/kdread" || exit 1
+
+function usage() {
+	cat <<EOF
+Usage: ${PN} [Options] <Action>
+Options: 
+  -h        : show this help message
+  -a        : scan scsi hosts when add new harddisk
+  -l        : list scsi disk used for rescan and delete
+  -r <DISK> : rescan scsi disk when resize harddisk
+  -d <DISK> : delete scsi disk before remove harddisk
+EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+opt="$(getopt -o halr:d: -- "$@")" || usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ;;
+	-a) scan_disk=1 ; shift ;;
+	-l) list_disk=1 ; shift ;;
+	-r) rescan_disk="${2}" ; shift 2 ;;
+	-d) delete_disk="${2}" ; shift 2 ;;
+	--) shift ; break ;;
+	*) die "Internal error!" ;;
+	esac
+done
+
+[ "$#" -gt 0 ] && usage "Invalid parameters"
+
+if [ "${scan_disk}" == "1" ] ; then
+	for i in /sys/class/scsi_host/* ; do
+		einfo "Scan ${i}"
+		echo "- - -" > "${i}/scan"
+	done
+fi
+
+if [ "${list_disk}" == "1" ] ; then
+	einfo "Disk list:"
+	ls -1 /sys/bus/scsi/drivers/sd/ | grep -E "^[0-9]+"
+fi
+
+if [ "${rescan_disk}" ] ; then
+	if [ -e "/sys/bus/scsi/drivers/sd/${rescan_disk}/rescan" ] ; then
+		einfo "Rescan disk ${rescan_disk}"
+		echo 1 > "/sys/bus/scsi/drivers/sd/${rescan_disk}/rescan"
+	else
+		eerror "Rescan target disk ${rescan_disk} not found"
+	fi
+fi
+
+if [ "${delete_disk}" ] ; then
+	if [ -e "/sys/bus/scsi/drivers/sd/${delete_disk}/delete" ] ; then
+		einfo "Delete disk ${delete_disk}"
+		echo 1 > "/sys/bus/scsi/drivers/sd/${delete_disk}/delete"
+	else
+		eerror "Delete target disk ${delete_disk} not found"
+	fi
+fi
+
