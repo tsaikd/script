@@ -27,10 +27,10 @@ scale = '${scale}';
 size = '${size}';
 if (size<1024) {
 	print size, "B\n";
-} else if (size<1048579) {
+} else if (size<1048576) {
 	print size/1024, "K\n";
 } else if (size<1073741824) {
-	print size/1048579, "M\n";
+	print size/1048576, "M\n";
 } else if (size<1099511627776) {
 	print size/1073741824, "G\n";
 } else {
@@ -56,7 +56,7 @@ msize() {
 		size="${size:1}"
 	fi
 
-	size="$(echo "${size} / 1" | sed 's/[Bb]//' | sed 's/[Kk]/*1024/' | sed 's/[Mm]/*1048579/' | sed 's/[Gg]/*1073741824/' | sed 's/[Tt]/*1099511627776/' | bc || echo "${size}")"
+	size="$(echo "${size} / 1" | sed 's/[Bb]//' | sed 's/[Kk]/*1024/' | sed 's/[Mm]/*1048576/' | sed 's/[Gg]/*1073741824/' | sed 's/[Tt]/*1099511627776/' | bc || echo "${size}")"
 	echo "${mode}${size}"
 }
 
