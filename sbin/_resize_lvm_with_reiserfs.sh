@@ -65,9 +65,21 @@ if [ -z "${LSIZE}" ] ; then
 	usage "Please set size"
 fi
 
-VG="$(echo "${DEV_PATH}" | sed 's/\/dev\/mapper\/\([^-]\+\)-/\1\//')"
-LV="$(echo "${VG}" | awk -F '/' '{print $2}')"
-VG="$(echo "${VG}" | awk -F '/' '{print $1}')"
+if [ "$(grep "^/dev/mapper/" <<<"${DEV_PATH}")" ] ; then
+	VG="$(sed 's/\/dev\/mapper\/\([^-]\+\)-/\1\//' <<<"${DEV_PATH}")"
+	LV="$(awk -F '/' '{print $2}' <<<"${VG}")"
+	VG="$(awk -F '/' '{print $1}' <<<"${VG}")"
+elif [ "$(grep "^/dev/" <<<"${DEV_PATH}")" ] ; then
+	LV="$(awk -F '/' '{print $4}' <<<"${DEV_PATH}")"
+	VG="$(awk -F '/' '{print $3}' <<<"${DEV_PATH}")"
+else
+	LV=""
+	VG=""
+fi
+
+if [ -z "${LV}" ] || [ -z "${VG}" ] ; then
+	die "Can't parse device path '${DEV_PATH}' for VG, LV"
+fi
 
 LV_SIZE="$(lvs "${VG}/${LV}" --noheadings --units b --nosuffix 2>/dev/null)" \
 	|| die "Can't find LVM device at ${DEV_PATH}"
