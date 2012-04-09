@@ -69,6 +69,10 @@ if [ "$(grep "^/dev/mapper/" <<<"${DEV_PATH}")" ] ; then
 	VG="$(sed 's/\/dev\/mapper\/\([^-]\+\)-/\1\//' <<<"${DEV_PATH}")"
 	LV="$(awk -F '/' '{print $2}' <<<"${VG}")"
 	VG="$(awk -F '/' '{print $1}' <<<"${VG}")"
+elif [ "$(grep -E "^/dev/dm-[0-9]+" <<<"${DEV_PATH}")" ] ; then
+	name="$(dmsetup info "${DEV_PATH}" | grep "^Name:" | awk '{print $2}')"
+	VG="$(cut -d- -f1 <<<"${name}")"
+	LV="$(cut -d- -f2- <<<"${name}")"
 elif [ "$(grep "^/dev/" <<<"${DEV_PATH}")" ] ; then
 	LV="$(awk -F '/' '{print $4}' <<<"${DEV_PATH}")"
 	VG="$(awk -F '/' '{print $3}' <<<"${DEV_PATH}")"
@@ -79,6 +83,10 @@ fi
 
 if [ -z "${LV}" ] || [ -z "${VG}" ] ; then
 	die "Can't parse device path '${DEV_PATH}' for VG, LV"
+fi
+
+if [ -z "${MNT_PATH}" ] ; then
+	MNT_PATH="$(mount | grep "^/dev/mapper/${VG}-${LV} " | awk '{print $3}')"
 fi
 
 LV_SIZE="$(lvs "${VG}/${LV}" --noheadings --units b --nosuffix 2>/dev/null)" \
