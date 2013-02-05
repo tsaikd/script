@@ -58,7 +58,7 @@ wget -q -O /dev/null \
 	--post-data="token=${token}${opt_rev}"
 
 page="$(wget -q -O - "${hudson_url}/job/${proj_name}/")"
-num="$(grep -Eo -m 1 "#[0-9]+" <<<"${page}")"
+num="$(grep -Eo -m 1 "#[1-9]+[0-9]*" <<<"${page}")"
 if [ "${num}" ] ; then
 	echo "trigger hudson project (${proj_name}) build (${num})${info_rev}"
 fi
