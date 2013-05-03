@@ -1,0 +1,58 @@
+#!/bin/bash
+
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/../lib/die"
+
+function usage() {
+	cat <<EOF
+Usage: ${PN} [Options] <filesystem> <remote host>
+Options:
+  -h       : show this help message
+EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+type getopt cat grep cut >/dev/null || exit $?
+
+(($# == 0)) && usage "Invalid parameters"
+opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ; shift ;;
+	--) shift ; break ;;
+	*) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
+(($# < 1)) && usage "Invalid parameters"
+
+fs="${1}"
+host="${2}"
+
+tosnap="$(date +%Y%m%d)"
+fromsnap="$(ssh "${host}" "zfs list -t snapshot | grep -o '^${fs}@\(\S*\)' | tail -n 1 | cut -d@ -f2")"
+
+trynum=1
+while true ; do
+	zfs list -t snapshot "${fs}@${tosnap}" &>/dev/null
+	if [ $? -eq 0 ] ; then
+		tosnap="$(printf "$(date +%Y%m%d)-%02d" "${trynum}")"
+		((trynum++))
+	else
+		zfs snapshot "${fs}@${tosnap}"
+		break
+	fi
+done
+
+if [ "${fromsnap}" ] ; then
+	echo "sync ${host} zfs ${fs}@${fromsnap} -> ${tosnap}"
+	zfs send -vR -I "${fromsnap}" "${fs}@${tosnap}" | gzip | ssh "${host}" "gunzip | zfs recv -vF ${fs}"
+else
+	echo "sync ${host} zfs ${fs}@${tosnap}"
+	zfs send -vR -I "${fs}@${tosnap}" | gzip | ssh "${host}" "gunzip | zfs recv -vF ${fs}"
+fi
+
