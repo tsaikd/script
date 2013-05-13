@@ -1,0 +1,31 @@
+#!/bin/bash
+
+PN="${BASH_SOURCE[0]##*/}"
+PD="${BASH_SOURCE[0]%/*}"
+
+source "${PD}/lib/common" || exit 1
+
+function usage() {
+	cat <<EOF
+Usage: ${PN} [Options]
+Options:
+  -h       : show this help message
+EOF
+	[ $# -gt 0 ] && { echo ; die "$@" ; } || exit 0
+}
+
+opt="$(getopt -o h -- "$@")" || usage "Parse options failed"
+
+eval set -- "${opt}"
+while true ; do
+	case "${1}" in
+	-h) usage ;;
+	--) shift ; break ;;
+	*) die "Internal error!" ;;
+	esac
+done
+
+[ "$#" -gt 0 ] && usage "Invalid parameters"
+
+dd if=/dev/urandom count=1 2>/dev/null | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\).*/52:54:\1:\2:\3:\4/'
+
